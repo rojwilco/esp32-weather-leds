@@ -1,0 +1,4 @@
+secrets.h
+.claude/
+.vscode/
+.DS_Store

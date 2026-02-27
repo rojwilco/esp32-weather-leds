@@ -29,7 +29,7 @@
 // Animation timing: ~500ms fade each way (255/3 steps × 6ms), 2s hold on base temperature color
 #define FADE_STEP         3
 #define FADE_INTERVAL_MS  6
-#define HOLD_MS           2000UL
+#define HOLD_MS           3000UL
 
 struct DayForecast {
   float tempMax;
@@ -192,7 +192,7 @@ void tickAnimations() {
     } else if (ledStates[i].blendAmt <= 0) {
       ledStates[i].blendAmt  = 0;
       ledStates[i].fadeDir   = 1;
-      ledStates[i].holdUntil = now + HOLD_MS;  // restart 2s hold on base
+      ledStates[i].holdUntil = now + HOLD_MS;  // restart 3s hold on base
     }
 
     leds[i] = blend(ledStates[i].baseColor, ledStates[i].alertColor,

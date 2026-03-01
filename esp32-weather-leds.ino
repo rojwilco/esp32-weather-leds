@@ -3,7 +3,9 @@
 #include <WiFiClientSecure.h>
 #include <FastLED.h>
 #include <ArduinoJson.h>
+#ifndef UNIT_TESTING
 #include "secrets.h"
+#endif
 
 #include <Preferences.h>
 #include <WebServer.h>

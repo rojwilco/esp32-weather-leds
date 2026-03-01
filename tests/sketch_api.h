@@ -1,0 +1,81 @@
+// sketch_api.h — declarations for all sketch symbols that tests depend on.
+//
+// Test files include this header instead of re-including the .ino.
+// The actual definitions come from sketch_lib (sketch_wrapper.cpp).
+//
+// Keeps all mock headers and sketch constants in one place so individual
+// test files stay concise.
+
+#pragma once
+
+#include "mocks/Arduino.h"
+#include "mocks/FastLED.h"
+#include "mocks/WiFi.h"
+#include "mocks/HTTPClient.h"
+#include "mocks/WiFiClientSecure.h"
+#include "mocks/Preferences.h"
+#include "mocks/WebServer.h"
+
+// ── Sketch compile-time constants ────────────────────────────────────────────
+#define LED_PIN  23
+#define NUM_LEDS  6
+
+#define DEFAULT_BRIGHTNESS      50
+#define DEFAULT_POLL_MIN        30
+#define DEFAULT_COLD_TEMP_F     20.0f
+#define DEFAULT_HOT_TEMP_F      90.0f
+#define DEFAULT_LATITUDE        "38.9947"
+#define DEFAULT_LONGITUDE       "-77.0284"
+#define DEFAULT_FREEZE_THR_F    32.0f
+#define DEFAULT_HEAT_THR_F      95.0f
+#define DEFAULT_PRECIP_THR_PCT  50.0f
+
+#define FADE_STEP         3
+#define FADE_INTERVAL_MS  6
+#define HOLD_MS           3000UL
+
+#define COLOR_FREEZE  CRGB(200, 200, 255)
+#define COLOR_HEAT    CRGB(255, 140, 0)
+#define COLOR_RAIN    CRGB(0,   200, 200)
+
+// ── Sketch types ─────────────────────────────────────────────────────────────
+struct DayForecast {
+    float tempMax;
+    float tempMin;
+    float tempAvg;
+    float precipProb;
+};
+
+enum AlertType { ALERT_NONE, ALERT_HEAT, ALERT_FREEZE, ALERT_RAIN };
+
+struct LEDState {
+    CRGB      baseColor;
+    CRGB      alertColor;
+    AlertType alert;
+    int       blendAmt;
+    int       fadeDir;
+    unsigned long lastTick;
+    unsigned long holdUntil;
+};
+
+// ── Sketch globals (defined in sketch_wrapper.cpp via sketch_lib) ─────────────
+extern uint8_t  cfg_brightness;
+extern uint16_t cfg_poll_min;
+extern float    cfg_cold_temp;
+extern float    cfg_hot_temp;
+extern char     cfg_latitude[16];
+extern char     cfg_longitude[16];
+extern float    cfg_freeze_thr;
+extern float    cfg_heat_thr;
+extern float    cfg_precip_thr;
+extern CRGB     leds[NUM_LEDS];
+extern LEDState ledStates[NUM_LEDS];
+extern bool     g_forceRepoll;
+
+// ── Sketch functions (defined in sketch_wrapper.cpp via sketch_lib) ───────────
+CRGB tempToColor(float tempF);
+bool fetchForecast(DayForecast* outDays);
+void pollWeather();
+void tickAnimations();
+void handleSave();
+void handlePollNow();

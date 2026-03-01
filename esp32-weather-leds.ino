@@ -49,7 +49,7 @@ float    cfg_precip_thr = DEFAULT_PRECIP_THR_PCT;
 Preferences prefs;
 WebServer   server(80);
 
-static bool g_forceRepoll = false;
+bool g_forceRepoll = false;
 
 struct DayForecast {
   float tempMax;
@@ -254,7 +254,7 @@ void tickAnimations() {
 }
 
 void handleRoot() {
-  char page[4000];
+  static char page[8192];
   String ip = WiFi.localIP().toString();
   snprintf(page, sizeof(page), CONFIG_HTML,
            cfg_brightness, cfg_poll_min,

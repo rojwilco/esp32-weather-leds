@@ -77,5 +77,6 @@ CRGB tempToColor(float tempF);
 bool fetchForecast(DayForecast* outDays);
 void pollWeather();
 void tickAnimations();
+void handleRoot();
 void handleSave();
 void handlePollNow();

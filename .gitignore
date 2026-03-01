@@ -2,3 +2,4 @@ secrets.h
 .claude/
 .vscode/
 .DS_Store
+tests/build/

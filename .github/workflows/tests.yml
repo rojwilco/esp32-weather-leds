@@ -1,0 +1,44 @@
+name: Host Tests
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  test:
+    name: Build & run tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Cache the CMake build directory so FetchContent downloads
+      # (GoogleTest, ArduinoJson) are reused across runs.
+      - name: Cache CMake build
+        uses: actions/cache@v4
+        with:
+          path: tests/build
+          key: cmake-${{ runner.os }}-${{ hashFiles('tests/CMakeLists.txt') }}
+          restore-keys: cmake-${{ runner.os }}-
+
+      - name: Configure
+        run: cmake -S tests -B tests/build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build tests/build --parallel
+
+      - name: Test
+        run: ctest --test-dir tests/build --output-on-failure
+
+      - name: Report test results
+        uses: dorny/test-reporter@v1
+        if: always()   # run even when tests fail
+        with:
+          name: GoogleTest results
+          path: tests/build/test_*.xml
+          reporter: java-junit

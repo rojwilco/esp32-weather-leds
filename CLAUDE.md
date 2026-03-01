@@ -4,14 +4,14 @@ This file provides guidance to Claude Code when working with code in this reposi
 
 ## Build and flash
 
-Arduino sketch targeting the LOLIN D32 (ESP32). Compile and flash via the Arduino IDE or `arduino-cli`.
+Arduino sketch targeting the WeMos D1 Mini ESP32 (ESP32-WROOM-32). Compile and flash via the Arduino IDE or `arduino-cli`.
 
 ```bash
 # Compile
-arduino-cli compile --fqbn esp32:esp32:lolin_d32 esp32-weather-leds
+arduino-cli compile --fqbn esp32:esp32:d1_mini32 esp32-weather-leds
 
 # Flash (adjust port — macOS example)
-arduino-cli upload --fqbn esp32:esp32:lolin_d32 --port /dev/cu.usbserial-* esp32-weather-leds
+arduino-cli upload --fqbn esp32:esp32:d1_mini32 --port /dev/cu.usbserial-* esp32-weather-leds
 
 # Monitor serial output
 arduino-cli monitor --port /dev/cu.usbserial-* --config baudrate=115200

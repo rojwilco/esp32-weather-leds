@@ -33,12 +33,12 @@ jobs:
         run: cmake --build tests/build --parallel
 
       - name: Test
-        run: ctest --test-dir tests/build --output-on-failure --output-junit results.xml
+        run: ctest --test-dir tests/build --output-on-failure
 
       - name: Report test results
         uses: dorny/test-reporter@v1
         if: always()   # run even when tests fail
         with:
           name: GoogleTest results
-          path: tests/build/results.xml
+          path: tests/build/test_*.xml
           reporter: java-junit

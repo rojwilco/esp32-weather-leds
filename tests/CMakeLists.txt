@@ -67,9 +67,8 @@ function(add_sketch_test TEST_SRC)
         sketch_lib
         GTest::gtest_main
     )
-    # add_test registers the whole executable as one ctest entry.
-    # Individual Google Test cases are still reported when the binary runs.
-    add_test(NAME ${TEST_NAME} COMMAND ${TEST_NAME})
+    # Run via ctest; GTest writes per-test-case JUnit XML for dorny/test-reporter.
+    add_test(NAME ${TEST_NAME} COMMAND ${TEST_NAME} --gtest_output=xml:${TEST_NAME}.xml)
 endfunction()
 
 add_sketch_test(test_temp_to_color.cpp)

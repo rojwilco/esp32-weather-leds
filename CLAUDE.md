@@ -22,15 +22,19 @@ Required libraries: **FastLED** 3.10.3, **ArduinoJson** v7.x (v6 is incompatible
 
 ## Secrets
 
-`secrets.h` is gitignored. Copy `secrets.h.example` → `secrets.h` and fill in `WIFI_SSID`, `WIFI_PASSWORD`, `LATITUDE`, `LONGITUDE`.
+`secrets.h` is gitignored. Copy `secrets.h.example` → `secrets.h` and fill in `WIFI_SSID` and `WIFI_PASSWORD`. Latitude/longitude are configured at runtime via the web UI.
 
 ## Architecture
 
-- `setup()` — initializes FastLED, connects WiFi (dim-orange on failure), clears LEDs
-- `loop()` — polls immediately on boot, then every 30 minutes
+- `setup()` — loads config, initializes FastLED, connects WiFi (dim-orange on failure), starts `WebServer`, prints IP, clears LEDs
+- `loop()` — calls `server.handleClient()` every iteration; polls immediately on boot, then every `cfg_poll_min` minutes; `g_forceRepoll` flag triggers an out-of-schedule poll
+- `loadConfig()` / `saveConfig()` — reads/writes all runtime settings to NVS via `Preferences` (namespace `"wxleds"`)
+- `handleRoot()` — serves the HTML config page (`config_html.h`) with current config values injected via `snprintf`
+- `handleSave()` — processes POST from the config form, validates inputs, persists settings via `saveConfig()`, applies `FastLED.setBrightness()` immediately; sets `g_forceRepoll` if location changed
+- `handlePollNow()` — sets `g_forceRepoll = true`, triggering a poll on the next `loop()` iteration
 - `pollWeather()` — fetches all 6 days in one request, sets all LEDs, calls `FastLED.show()` once
-- `fetchForecast()` — HTTPS GET to Open-Meteo, filters JSON for max/min arrays, computes daily averages
-- `tempToColor()` — maps °F to CHSV: 20°F→hue 160 (blue), 100°F→hue 0 (red)
+- `fetchForecast()` — HTTPS GET to Open-Meteo using `cfg_latitude`/`cfg_longitude`, filters JSON for max/min/precip arrays, computes daily averages
+- `tempToColor()` — maps °F to CHSV using runtime bounds: `cfg_cold_temp`→hue 160 (blue, default 20°F), `cfg_hot_temp`→hue 0 (red, default 90°F)
 
 ## Host tests
 
@@ -62,5 +66,4 @@ To add a new test file, create `tests/test_<name>.cpp` and add `add_sketch_test(
 
 - **ArduinoJson v7 only.** Filter arrays with `filter["daily"]["temperature_2m_max"][0] = true` (the `[0]` is required to retain the whole array). Access via `.as<JsonArray>()`.
 - **Single `FastLED.show()` per poll cycle** — per-LED calls cause flicker.
-- **`LATITUDE`/`LONGITUDE` are string `#define`s** — interpolated via `%s` in `snprintf`.
 - **`forecast_days` equals `NUM_LEDS`** — changing LED count automatically adjusts the API request.

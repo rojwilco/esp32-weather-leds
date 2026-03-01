@@ -35,8 +35,8 @@ float    cfg_heat_thr   = DEFAULT_HEAT_THR_F;
 float    cfg_precip_thr = DEFAULT_PRECIP_THR_PCT;
 
 // Alert colors
-#define COLOR_FREEZE  CRGB(0,   0,   200)
-#define COLOR_HEAT    CRGB(255, 0,   0)
+#define COLOR_FREEZE  CRGB(200, 200, 255)  // icy white-blue, distinct from cold blue base
+#define COLOR_HEAT    CRGB(255, 140, 0)    // orange, distinct from hot red base
 #define COLOR_RAIN    CRGB(0,   200, 200)
 
 // Animation timing: ~500ms fade each way (255/3 steps × 6ms), 2s hold on base temperature color

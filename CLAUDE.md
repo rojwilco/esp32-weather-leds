@@ -55,6 +55,8 @@ Test suites:
 - `test_fetch_forecast` — JSON parsing, HTTP error handling
 - `test_poll_weather` — alert logic and LED state after a poll
 - `test_animations` — per-tick fade/blend animation state machine
+- `test_handle_root` — `handleRoot()` rendering: HTTP 200, buffer not truncated, country select present with US default, config values injected
+- `test_handle_save` — `handleSave()` logic: location-change repoll flag, brightness/poll_min clamping, cold/hot temp correction, 303 redirect, NVS persistence
 
 To add a new test file, create `tests/test_<name>.cpp` and add `add_sketch_test(test_<name>.cpp)` to `tests/CMakeLists.txt`.
 
@@ -67,3 +69,4 @@ To add a new test file, create `tests/test_<name>.cpp` and add `add_sketch_test(
 - **ArduinoJson v7 only.** Filter arrays with `filter["daily"]["temperature_2m_max"][0] = true` (the `[0]` is required to retain the whole array). Access via `.as<JsonArray>()`.
 - **Single `FastLED.show()` per poll cycle** — per-LED calls cause flicker.
 - **`forecast_days` equals `NUM_LEDS`** — changing LED count automatically adjusts the API request.
+- **`handleRoot()` page buffer is `static`** — the 8 KB buffer must remain `static char page[8192]` to avoid a stack overflow in the WebServer callback. The ESP32 loop task stack is ~8 KB total; a plain local allocation of that size crashes the device.

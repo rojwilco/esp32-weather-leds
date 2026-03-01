@@ -15,7 +15,7 @@ build: $(BUILD_DIR)/Makefile
 	cmake --build $(BUILD_DIR) -j$$(nproc)
 
 $(BUILD_DIR)/Makefile:
-	cmake -S . -B $(BUILD_DIR) -DCMAKE_BUILD_TYPE=Debug
+	cmake -S . -B $(BUILD_DIR) -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
 test:
 	ctest --test-dir $(BUILD_DIR) --output-on-failure

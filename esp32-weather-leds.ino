@@ -271,6 +271,7 @@ void tickAnimations() {
 // Forward declarations for handlers used by startAPMode()
 void handleRoot();
 void handleSave();
+void handleScan();
 
 void startAPMode() {
   g_ap_mode = true;
@@ -283,6 +284,7 @@ void startAPMode() {
 
   server.on("/",     HTTP_GET,  handleRoot);
   server.on("/save", HTTP_POST, handleSave);
+  server.on("/scan", HTTP_GET,  handleScan);
   // Captive portal: redirect all other paths to the config page
   server.onNotFound([]() {
     server.sendHeader("Location", "http://192.168.4.1/");
@@ -365,6 +367,48 @@ void handlePollNow() {
   server.send(303);
 }
 
+void handleScan() {
+  int n = WiFi.scanNetworks();
+  if (n < 0) n = 0;
+
+  struct ScanEntry { String ssid; int rssi; };
+  ScanEntry entries[32];
+  int count = 0;
+
+  for (int i = 0; i < n; i++) {
+    String s = WiFi.SSID(i);
+    int    r = WiFi.RSSI(i);
+    bool dup = false;
+    for (int j = 0; j < count; j++) {
+      if (entries[j].ssid == s) { dup = true; break; }
+    }
+    if (!dup && count < 32) {
+      entries[count++] = {s, r};
+    }
+  }
+
+  // insertion sort descending by RSSI
+  for (int i = 1; i < count; i++) {
+    ScanEntry key = entries[i];
+    int j = i - 1;
+    while (j >= 0 && entries[j].rssi < key.rssi) {
+      entries[j + 1] = entries[j--];
+    }
+    entries[j + 1] = key;
+  }
+
+  static char buf[4096];
+  int pos = snprintf(buf, sizeof(buf), "[");
+  for (int i = 0; i < count; i++) {
+    if (i > 0) pos += snprintf(buf + pos, sizeof(buf) - pos, ",");
+    pos += snprintf(buf + pos, sizeof(buf) - pos,
+                    "{\"ssid\":\"%s\",\"rssi\":%d}",
+                    entries[i].ssid.c_str(), entries[i].rssi);
+  }
+  snprintf(buf + pos, sizeof(buf) - pos, "]");
+  server.send(200, "application/json", buf);
+}
+
 void setup() {
   Serial.begin(115200);
   delay(500);
@@ -406,6 +450,7 @@ void setup() {
   server.on("/",     HTTP_GET,  handleRoot);
   server.on("/save", HTTP_POST, handleSave);
   server.on("/poll", HTTP_POST, handlePollNow);
+  server.on("/scan", HTTP_GET,  handleScan);
   server.begin();
   Serial.printf("Web UI: http://%s/\n", WiFi.localIP().toString().c_str());
 

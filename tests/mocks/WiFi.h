@@ -1,6 +1,8 @@
 #pragma once
 
 #include "Arduino.h"
+#include <string>
+#include <vector>
 
 // ── IPAddress ─────────────────────────────────────────────────────────────────
 struct IPAddress {
@@ -14,6 +16,10 @@ static constexpr int WL_DISCONNECTED = 6;
 // ── WiFi mode constants ───────────────────────────────────────────────────────
 static constexpr int WIFI_STA = 1;
 static constexpr int WIFI_AP  = 2;
+
+// ── Scan mock state ───────────────────────────────────────────────────────────
+struct MockNetwork { std::string ssid; int rssi; };
+extern std::vector<MockNetwork> g_mock_scan_results;
 
 // ── WiFiClass stub ────────────────────────────────────────────────────────────
 // Tests can set g_mock_wifi_status to control connection state.
@@ -30,6 +36,11 @@ struct WiFiClass {
     bool      softAP(const char* /*ssid*/, const char* /*pass*/ = nullptr) { return true; }
     bool      softAPdisconnect(bool = false) { return true; }
     IPAddress softAPIP() const { return IPAddress{}; }
+
+    // Scan API
+    int    scanNetworks() { return (int)g_mock_scan_results.size(); }
+    String SSID(int i)    { return String(g_mock_scan_results[i].ssid); }
+    int    RSSI(int i)    { return g_mock_scan_results[i].rssi; }
 };
 
 extern WiFiClass WiFi;

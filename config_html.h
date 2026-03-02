@@ -26,7 +26,12 @@ select{background:#2a2a2a;color:#e0e0e0;border:1px solid #444;border-radius:4px;
 <div style="display:%s;background:#1a2a3a;border:1px solid #2a5a8a;border-radius:4px;padding:.8em;margin-bottom:1em;color:#6aaddf">&#9432; Setup mode &mdash; connect to <strong>ESP32-Weather</strong>, then enter your WiFi credentials below and save.</div>
 <form method="POST" action="/save">
 <label>WiFi Network (SSID)</label>
-<input type="text" name="wifi_ssid" maxlength="63" value="%s" autocomplete="off">
+<div class="locrow">
+<input type="text" name="wifi_ssid" id="ssidInput" maxlength="63" value="%s" autocomplete="off" list="ssidList" style="grid-column:1/3">
+<datalist id="ssidList"></datalist>
+<button type="button" class="btn loc" onclick="scanWifi()">Scan</button>
+</div>
+<div id="scanStatus" class="locstatus"></div>
 <label>WiFi Password</label>
 <input type="password" name="wifi_pass" maxlength="63" placeholder="leave blank to keep current" autocomplete="new-password">
 <label>Brightness (0-255)</label>
@@ -155,6 +160,25 @@ var initVals={};
   });
 })();
 function setLocStatus(m){document.getElementById('locStatus').textContent=m;}
+function scanWifi(){
+  var st=document.getElementById('scanStatus');
+  st.textContent='Scanning\u2026';
+  fetch('/scan')
+    .then(function(r){if(!r.ok)throw 0;return r.json();})
+    .then(function(nets){
+      var dl=document.getElementById('ssidList');
+      dl.innerHTML='';
+      if(!nets.length){st.textContent='No networks found';return;}
+      nets.forEach(function(n){
+        var o=document.createElement('option');
+        o.value=n.ssid;
+        o.label=n.ssid+' ('+n.rssi+' dBm)';
+        dl.appendChild(o);
+      });
+      st.textContent='Found '+nets.length+' network'+(nets.length===1?'':'s');
+    })
+    .catch(function(){st.textContent='Scan failed';});
+}
 function lookupZip(){
   var cc=document.getElementById('countrySelect').value;
   var z=document.getElementById('zipInput').value.trim();

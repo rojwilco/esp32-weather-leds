@@ -87,3 +87,4 @@ void startAPMode();
 void handleRoot();
 void handleSave();
 void handlePollNow();
+void handleScan();

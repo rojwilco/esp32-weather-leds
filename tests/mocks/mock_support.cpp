@@ -22,6 +22,7 @@ const CRGB CRGB::Black = CRGB(0, 0, 0);
 // ── WiFi.h globals ────────────────────────────────────────────────────────────
 int       g_mock_wifi_status = WL_CONNECTED;
 WiFiClass WiFi;
+std::vector<MockNetwork> g_mock_scan_results;
 
 // ── HTTPClient.h globals ──────────────────────────────────────────────────────
 int    g_mock_http_code     = 200;

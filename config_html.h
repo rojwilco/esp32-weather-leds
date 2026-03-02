@@ -15,7 +15,7 @@ input[type=number],input[type=text],input[type=password]{width:100%%;box-sizing:
 .save.dirty{background:#b06000}
 .poll{background:#4a3a7a;color:#fff;border:none;border-radius:4px}
 .footer{margin-top:2em;font-size:.8em;color:#555}
-select{background:#2a2a2a;color:#e0e0e0;border:1px solid #444;border-radius:4px;padding:.4em;font-size:1em}
+select{width:100%%;box-sizing:border-box;background:#2a2a2a;color:#e0e0e0;border:1px solid #444;border-radius:4px;padding:.4em;font-size:1em}
 .locrow{display:grid;grid-template-columns:auto 1fr auto;gap:.5em;margin-top:.5em;align-items:center}
 .locrow input,.locrow .btn{margin-top:0}
 .loc{background:#3a5a7a;color:#fff;border:none;border-radius:4px;white-space:nowrap;padding:.4em .8em;font-size:1em;cursor:pointer}
@@ -27,11 +27,14 @@ select{background:#2a2a2a;color:#e0e0e0;border:1px solid #444;border-radius:4px;
 <form method="POST" action="/save">
 <label>WiFi Network (SSID)</label>
 <div class="locrow">
-<input type="text" name="wifi_ssid" id="ssidInput" maxlength="63" value="%s" autocomplete="off" list="ssidList" style="grid-column:1/3">
-<datalist id="ssidList"></datalist>
+<select id="ssidSelect" style="grid-column:1/3">
+<option value="">-- tap Scan to see networks --</option>
+</select>
 <button type="button" class="btn loc" onclick="scanWifi()">Scan</button>
 </div>
 <div id="scanStatus" class="locstatus"></div>
+<label>Or enter SSID manually</label>
+<input type="text" name="wifi_ssid" id="ssidInput" maxlength="63" value="%s" autocomplete="off">
 <label>WiFi Password</label>
 <input type="password" name="wifi_pass" maxlength="63" placeholder="leave blank to keep current" autocomplete="new-password">
 <label>Brightness (0-255)</label>
@@ -166,19 +169,22 @@ function scanWifi(){
   fetch('/scan')
     .then(function(r){if(!r.ok)throw 0;return r.json();})
     .then(function(nets){
-      var dl=document.getElementById('ssidList');
-      dl.innerHTML='';
+      var sel=document.getElementById('ssidSelect');
+      sel.innerHTML='<option value="">-- select a network --</option>';
       if(!nets.length){st.textContent='No networks found';return;}
       nets.forEach(function(n){
         var o=document.createElement('option');
         o.value=n.ssid;
-        o.label=n.ssid+' ('+n.rssi+' dBm)';
-        dl.appendChild(o);
+        o.textContent=n.ssid+' ('+n.rssi+' dBm)';
+        sel.appendChild(o);
       });
       st.textContent='Found '+nets.length+' network'+(nets.length===1?'':'s');
     })
     .catch(function(){st.textContent='Scan failed';});
 }
+document.getElementById('ssidSelect').addEventListener('change',function(){
+  if(this.value)document.getElementById('ssidInput').value=this.value;
+});
 function lookupZip(){
   var cc=document.getElementById('countrySelect').value;
   var z=document.getElementById('zipInput').value.trim();

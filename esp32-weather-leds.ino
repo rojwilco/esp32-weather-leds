@@ -4,7 +4,7 @@
 #include <FastLED.h>
 #include <ArduinoJson.h>
 #ifndef UNIT_TESTING
-#include "secrets.h"
+#include <DNSServer.h>
 #endif
 
 #include <Preferences.h>
@@ -13,6 +13,7 @@
 
 #define LED_PIN           23
 #define NUM_LEDS          6
+#define AP_SSID           "ESP32-Weather"
 
 // Compile-time defaults — overridden at runtime via web UI + NVS
 #define DEFAULT_BRIGHTNESS      50
@@ -24,6 +25,8 @@
 #define DEFAULT_FREEZE_THR_F    32.0f
 #define DEFAULT_HEAT_THR_F      95.0f
 #define DEFAULT_PRECIP_THR_PCT  50.0f
+#define DEFAULT_WIFI_SSID       ""
+#define DEFAULT_WIFI_PASS       ""
 
 // Runtime config (loaded from NVS, used everywhere)
 uint8_t  cfg_brightness = DEFAULT_BRIGHTNESS;
@@ -35,6 +38,8 @@ char     cfg_longitude[16] = DEFAULT_LONGITUDE;
 float    cfg_freeze_thr = DEFAULT_FREEZE_THR_F;
 float    cfg_heat_thr   = DEFAULT_HEAT_THR_F;
 float    cfg_precip_thr = DEFAULT_PRECIP_THR_PCT;
+char     cfg_wifi_ssid[64] = DEFAULT_WIFI_SSID;
+char     cfg_wifi_pass[64] = DEFAULT_WIFI_PASS;
 
 // Alert colors
 #define COLOR_FREEZE  CRGB(200, 200, 255)  // icy white-blue, distinct from cold blue base
@@ -49,7 +54,13 @@ float    cfg_precip_thr = DEFAULT_PRECIP_THR_PCT;
 Preferences prefs;
 WebServer   server(80);
 
-bool g_forceRepoll = false;
+bool g_forceRepoll    = false;
+bool g_ap_mode        = false;
+bool g_pendingConnect = false;
+
+#ifndef UNIT_TESTING
+static DNSServer dnsServer;
+#endif
 
 struct DayForecast {
   float tempMax;
@@ -84,10 +95,12 @@ void loadConfig() {
   cfg_precip_thr = prefs.getFloat("precip_thr",  DEFAULT_PRECIP_THR_PCT);
   prefs.getString("latitude",  DEFAULT_LATITUDE).toCharArray(cfg_latitude,  sizeof(cfg_latitude));
   prefs.getString("longitude", DEFAULT_LONGITUDE).toCharArray(cfg_longitude, sizeof(cfg_longitude));
+  prefs.getString("wifi_ssid", DEFAULT_WIFI_SSID).toCharArray(cfg_wifi_ssid, sizeof(cfg_wifi_ssid));
+  prefs.getString("wifi_pass", DEFAULT_WIFI_PASS).toCharArray(cfg_wifi_pass, sizeof(cfg_wifi_pass));
   prefs.end();
-  Serial.printf("Config: brt=%d poll=%dmin cold=%.1f hot=%.1f lat=%s lon=%s\n",
+  Serial.printf("Config: brt=%d poll=%dmin cold=%.1f hot=%.1f lat=%s lon=%s ssid=%s\n",
                 cfg_brightness, cfg_poll_min, cfg_cold_temp, cfg_hot_temp,
-                cfg_latitude, cfg_longitude);
+                cfg_latitude, cfg_longitude, cfg_wifi_ssid);
 }
 
 void saveConfig() {
@@ -101,6 +114,8 @@ void saveConfig() {
   prefs.putFloat("precip_thr",  cfg_precip_thr);
   prefs.putString("latitude",   cfg_latitude);
   prefs.putString("longitude",  cfg_longitude);
+  prefs.putString("wifi_ssid",  cfg_wifi_ssid);
+  prefs.putString("wifi_pass",  cfg_wifi_pass);
   prefs.end();
 }
 
@@ -253,10 +268,39 @@ void tickAnimations() {
   if (changed) FastLED.show();
 }
 
+// Forward declarations for handlers used by startAPMode()
+void handleRoot();
+void handleSave();
+
+void startAPMode() {
+  g_ap_mode = true;
+  WiFi.mode(WIFI_AP);
+  WiFi.softAP(AP_SSID);
+
+#ifndef UNIT_TESTING
+  dnsServer.start(53, "*", WiFi.softAPIP());
+#endif
+
+  server.on("/",     HTTP_GET,  handleRoot);
+  server.on("/save", HTTP_POST, handleSave);
+  // Captive portal: redirect all other paths to the config page
+  server.onNotFound([]() {
+    server.sendHeader("Location", "http://192.168.4.1/");
+    server.send(302, "text/plain", "");
+  });
+  server.begin();
+
+  Serial.printf("AP mode: connect to \"%s\", then open http://192.168.4.1/\n", AP_SSID);
+  fill_solid(leds, NUM_LEDS, CRGB(0, 0, 40));
+  FastLED.show();
+}
+
 void handleRoot() {
-  static char page[8192];
-  String ip = WiFi.localIP().toString();
+  static char page[10240];
+  String ip = g_ap_mode ? WiFi.softAPIP().toString() : WiFi.localIP().toString();
   snprintf(page, sizeof(page), CONFIG_HTML,
+           g_ap_mode ? "block" : "none",
+           cfg_wifi_ssid,
            cfg_brightness, cfg_poll_min,
            cfg_cold_temp, cfg_hot_temp,
            cfg_latitude, cfg_longitude,
@@ -295,9 +339,21 @@ void handleSave() {
     lon.toCharArray(cfg_longitude, sizeof(cfg_longitude));
   }
 
+  bool wifiChanged = false;
+  if (server.hasArg("wifi_ssid")) {
+    String ssid = server.arg("wifi_ssid");
+    if (ssid != String(cfg_wifi_ssid)) wifiChanged = true;
+    ssid.toCharArray(cfg_wifi_ssid, sizeof(cfg_wifi_ssid));
+  }
+  if (server.hasArg("wifi_pass") && !server.arg("wifi_pass").isEmpty()) {
+    wifiChanged = true;
+    server.arg("wifi_pass").toCharArray(cfg_wifi_pass, sizeof(cfg_wifi_pass));
+  }
+
   FastLED.setBrightness(cfg_brightness);
   saveConfig();
   if (locationChanged) g_forceRepoll = true;
+  if (wifiChanged)     g_pendingConnect = true;
 
   server.sendHeader("Location", "/");
   server.send(303);
@@ -323,8 +379,14 @@ void setup() {
   fill_solid(leds, NUM_LEDS, CRGB(20, 20, 20));
   FastLED.show();
 
-  Serial.printf("Connecting to WiFi: %s\n", WIFI_SSID);
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  if (strlen(cfg_wifi_ssid) == 0) {
+    Serial.println("No WiFi credentials saved — starting AP mode");
+    startAPMode();
+    return;
+  }
+
+  Serial.printf("Connecting to WiFi: %s\n", cfg_wifi_ssid);
+  WiFi.begin(cfg_wifi_ssid, cfg_wifi_pass);
 
   unsigned long start = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - start < 30000) {
@@ -334,9 +396,8 @@ void setup() {
   Serial.println();
 
   if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("WiFi connection failed — showing dim orange");
-    fill_solid(leds, NUM_LEDS, CRGB(20, 10, 0));
-    FastLED.show();
+    Serial.println("WiFi connection failed — starting AP mode");
+    startAPMode();
     return;
   }
 
@@ -356,6 +417,43 @@ void setup() {
 void loop() {
   static bool firstRun = true;
   static unsigned long lastPollTime = 0;
+
+  if (g_ap_mode) {
+#ifndef UNIT_TESTING
+    dnsServer.processNextRequest();
+#endif
+    server.handleClient();
+
+    if (g_pendingConnect) {
+      g_pendingConnect = false;
+      WiFi.softAPdisconnect(true);
+#ifndef UNIT_TESTING
+      dnsServer.stop();
+#endif
+      Serial.printf("Trying to connect to \"%s\"...\n", cfg_wifi_ssid);
+      WiFi.begin(cfg_wifi_ssid, cfg_wifi_pass);
+
+      unsigned long start = millis();
+      while (WiFi.status() != WL_CONNECTED && millis() - start < 30000) {
+        delay(500);
+        Serial.print(".");
+      }
+      Serial.println();
+
+      if (WiFi.status() == WL_CONNECTED) {
+        g_ap_mode = false;
+        Serial.printf("Connected! IP: %s\n", WiFi.localIP().toString().c_str());
+        server.on("/poll", HTTP_POST, handlePollNow);
+        fill_solid(leds, NUM_LEDS, CRGB(0, 0, 0));
+        FastLED.show();
+        firstRun = true;
+      } else {
+        Serial.println("Connection failed — returning to AP mode");
+        startAPMode();
+      }
+    }
+    return;
+  }
 
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("loop: WiFi disconnected, reconnecting...");

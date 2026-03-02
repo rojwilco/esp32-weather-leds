@@ -23,7 +23,12 @@ select{background:#2a2a2a;color:#e0e0e0;border:1px solid #444;border-radius:4px;
 </style>
 </head><body>
 <h1>Weather LEDs Config</h1>
+<div style="display:%s;background:#1a2a3a;border:1px solid #2a5a8a;border-radius:4px;padding:.8em;margin-bottom:1em;color:#6aaddf">&#9432; Setup mode &mdash; connect to <strong>ESP32-Weather</strong>, then enter your WiFi credentials below and save.</div>
 <form method="POST" action="/save">
+<label>WiFi Network (SSID)</label>
+<input type="text" name="wifi_ssid" maxlength="63" value="%s" autocomplete="off">
+<label>WiFi Password</label>
+<input type="password" name="wifi_pass" maxlength="63" placeholder="leave blank to keep current" autocomplete="new-password">
 <label>Brightness (0-255)</label>
 <input type="number" name="brightness" min="0" max="255" value="%d">
 <label>Poll interval (minutes)</label>

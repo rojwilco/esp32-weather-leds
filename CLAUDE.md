@@ -69,4 +69,4 @@ To add a new test file, create `tests/test_<name>.cpp` and add `add_sketch_test(
 - **ArduinoJson v7 only.** Filter arrays with `filter["daily"]["temperature_2m_max"][0] = true` (the `[0]` is required to retain the whole array). Access via `.as<JsonArray>()`.
 - **Single `FastLED.show()` per poll cycle** — per-LED calls cause flicker.
 - **`forecast_days` equals `NUM_LEDS`** — changing LED count automatically adjusts the API request.
-- **`handleRoot()` page buffer is `static`** — the 8 KB buffer must remain `static char page[8192]` to avoid a stack overflow in the WebServer callback. The ESP32 loop task stack is ~8 KB total; a plain local allocation of that size crashes the device.
+- **`handleRoot()` page buffer is `static`** — the buffer must remain `static char page[...]` (currently 10 KB) to avoid a stack overflow in the WebServer callback. The ESP32 loop task stack is ~8 KB total; a plain local allocation of that size crashes the device. The `static` keyword is what matters; the buffer size may be grown as needed.

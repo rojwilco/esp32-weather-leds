@@ -9,7 +9,7 @@ const char CONFIG_HTML[] PROGMEM = R"rawhtml(
 body{font-family:sans-serif;max-width:500px;margin:2em auto;padding:0 1em;background:#1a1a1a;color:#e0e0e0}
 h1{font-size:1.3em}
 label{display:block;margin-top:1em;font-size:.9em;color:#aaa}
-input[type=number],input[type=text]{width:100%%;box-sizing:border-box;padding:.4em;font-size:1em;background:#2a2a2a;color:#e0e0e0;border:1px solid #444;border-radius:4px}
+input[type=number],input[type=text],input[type=password]{width:100%%;box-sizing:border-box;padding:.4em;font-size:1em;background:#2a2a2a;color:#e0e0e0;border:1px solid #444;border-radius:4px}
 .btn{margin-top:1.2em;padding:.5em 1.2em;font-size:1em;cursor:pointer}
 .save{background:#1e7a4a;color:#fff;border:none;border-radius:4px;transition:background .2s}
 .save.dirty{background:#b06000}

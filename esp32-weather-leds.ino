@@ -13,7 +13,7 @@
 
 #define LED_PIN           23
 #define NUM_LEDS          6
-#define AP_SSID           "ESP32-Weather"
+#define AP_SSID           "ESP32-WeatherLED"
 
 // Compile-time defaults — overridden at runtime via web UI + NVS
 #define DEFAULT_BRIGHTNESS      50

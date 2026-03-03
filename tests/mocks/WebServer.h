@@ -25,6 +25,7 @@ struct WebServer {
     void handleClient() {}
 
     void on(const char* /*uri*/, int /*method*/, std::function<void()> /*handler*/) {}
+    void onNotFound(std::function<void()> /*handler*/) {}
 
     bool   hasArg(const String& key) const {
         return g_mock_server_args.count(std::string(key.c_str())) > 0;

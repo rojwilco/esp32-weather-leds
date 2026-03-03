@@ -14,7 +14,10 @@ protected:
         cfg_freeze_thr  = DEFAULT_FREEZE_THR_F;
         cfg_heat_thr    = DEFAULT_HEAT_THR_F;
         cfg_precip_thr  = DEFAULT_PRECIP_THR_PCT;
-        g_forceRepoll = false;
+        strncpy(cfg_wifi_ssid, DEFAULT_WIFI_SSID, sizeof(cfg_wifi_ssid));
+        strncpy(cfg_wifi_pass, DEFAULT_WIFI_PASS, sizeof(cfg_wifi_pass));
+        g_forceRepoll    = false;
+        g_pendingConnect = false;
         g_mock_server_args.clear();
         g_mock_prefs_store.clear();
         g_mock_last_send_code = 0;
@@ -78,4 +81,42 @@ TEST_F(HandleSaveTest, PersistsToBrightness) {
     g_mock_server_args["brightness"] = "100";
     handleSave();
     EXPECT_EQ(g_mock_prefs_store["brightness"], "100");
+}
+
+TEST_F(HandleSaveTest, NewSsidSetsPendingConnect) {
+    g_mock_server_args["wifi_ssid"] = "MyNetwork";
+    handleSave();
+    EXPECT_TRUE(g_pendingConnect);
+    EXPECT_EQ(std::string(cfg_wifi_ssid), "MyNetwork");
+}
+
+TEST_F(HandleSaveTest, UnchangedSsidNoPendingConnect) {
+    // ssid is already "" (DEFAULT_WIFI_SSID); sending "" again = no change
+    g_mock_server_args["wifi_ssid"] = "";
+    handleSave();
+    EXPECT_FALSE(g_pendingConnect);
+}
+
+TEST_F(HandleSaveTest, PasswordSetsPendingConnect) {
+    g_mock_server_args["wifi_pass"] = "secret123";
+    handleSave();
+    EXPECT_TRUE(g_pendingConnect);
+    EXPECT_EQ(std::string(cfg_wifi_pass), "secret123");
+}
+
+TEST_F(HandleSaveTest, EmptyPasswordIgnored) {
+    strncpy(cfg_wifi_pass, "existing", sizeof(cfg_wifi_pass));
+    g_mock_server_args["wifi_pass"] = "";
+    handleSave();
+    // empty password arg → no update
+    EXPECT_FALSE(g_pendingConnect);
+    EXPECT_EQ(std::string(cfg_wifi_pass), "existing");
+}
+
+TEST_F(HandleSaveTest, WifiCredentialsPersistedToNvs) {
+    g_mock_server_args["wifi_ssid"] = "HomeWifi";
+    g_mock_server_args["wifi_pass"] = "pass123";
+    handleSave();
+    EXPECT_EQ(g_mock_prefs_store["wifi_ssid"], "HomeWifi");
+    EXPECT_EQ(g_mock_prefs_store["wifi_pass"],  "pass123");
 }

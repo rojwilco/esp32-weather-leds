@@ -24,15 +24,20 @@ Bounds default to 20°F (cold/blue) and 90°F (hot/red) and are configurable via
 2. Install board package: **esp32 by Espressif Systems**
 3. Install libraries: **FastLED 3.10.3**, **ArduinoJson v7.x**
 4. Set board `esp32:esp32:d1_mini32`
-5. Copy `secrets.h.example` → `secrets.h` and fill in your WiFi credentials (latitude/longitude can be set via the web UI after flashing)
-6. Compile and flash (see CLAUDE.md)
+5. Compile and flash (see CLAUDE.md) — no `secrets.h` needed
+6. On first boot the device starts in AP mode. Connect to the open Wi-Fi
+   network **ESP32-Weather** and visit `http://192.168.4.1/` to enter your
+   WiFi credentials (use the **Scan** button to see nearby networks). After
+   saving, the device reboots and connects normally.
 
 ## Configuration
 
-After flashing, the device IP is printed to the serial monitor (`Web UI: http://<ip>/`). Visit `http://<ip>/` from any device on the same network to configure:
+**First boot:** the device broadcasts an open AP named **ESP32-Weather**; connect and visit `http://192.168.4.1/` to set credentials. After saving, the device reboots into station mode and prints its IP to the serial monitor (`Web UI: http://<ip>/`). Visit that address to change any setting:
 
 | Setting | Default | Description |
 |---|---|---|
+| WiFi SSID | — | Network name; use the **Scan** button to list visible networks |
+| WiFi Password | — | Saved in NVS; leave blank on the settings page to keep the current password |
 | Brightness | 50 | LED brightness (0–255) |
 | Freeze alert threshold | 32°F | Alert when daily low ≤ this value |
 | Heat alert threshold | 95°F | Alert when daily high ≥ this value |

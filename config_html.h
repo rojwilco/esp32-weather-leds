@@ -9,13 +9,13 @@ const char CONFIG_HTML[] PROGMEM = R"rawhtml(
 body{font-family:sans-serif;max-width:500px;margin:2em auto;padding:0 1em;background:#1a1a1a;color:#e0e0e0}
 h1{font-size:1.3em}
 label{display:block;margin-top:1em;font-size:.9em;color:#aaa}
-input[type=number],input[type=text]{width:100%%;box-sizing:border-box;padding:.4em;font-size:1em;background:#2a2a2a;color:#e0e0e0;border:1px solid #444;border-radius:4px}
+input[type=number],input[type=text],input[type=password]{width:100%%;box-sizing:border-box;padding:.4em;font-size:1em;background:#2a2a2a;color:#e0e0e0;border:1px solid #444;border-radius:4px}
 .btn{margin-top:1.2em;padding:.5em 1.2em;font-size:1em;cursor:pointer}
 .save{background:#1e7a4a;color:#fff;border:none;border-radius:4px;transition:background .2s}
 .save.dirty{background:#b06000}
 .poll{background:#4a3a7a;color:#fff;border:none;border-radius:4px}
 .footer{margin-top:2em;font-size:.8em;color:#555}
-select{background:#2a2a2a;color:#e0e0e0;border:1px solid #444;border-radius:4px;padding:.4em;font-size:1em}
+select{width:100%%;box-sizing:border-box;background:#2a2a2a;color:#e0e0e0;border:1px solid #444;border-radius:4px;padding:.4em;font-size:1em}
 .locrow{display:grid;grid-template-columns:auto 1fr auto;gap:.5em;margin-top:.5em;align-items:center}
 .locrow input,.locrow .btn{margin-top:0}
 .loc{background:#3a5a7a;color:#fff;border:none;border-radius:4px;white-space:nowrap;padding:.4em .8em;font-size:1em;cursor:pointer}
@@ -23,7 +23,20 @@ select{background:#2a2a2a;color:#e0e0e0;border:1px solid #444;border-radius:4px;
 </style>
 </head><body>
 <h1>Weather LEDs Config</h1>
+<div style="display:%s;background:#1a2a3a;border:1px solid #2a5a8a;border-radius:4px;padding:.8em;margin-bottom:1em;color:#6aaddf">&#9432; Setup mode &mdash; connect to <strong>ESP32-Weather</strong>, then enter your WiFi credentials below and save.</div>
 <form method="POST" action="/save">
+<label>WiFi Network (SSID)</label>
+<div class="locrow">
+<select id="ssidSelect" style="grid-column:1/3">
+<option value="">-- tap Scan to see networks --</option>
+</select>
+<button type="button" class="btn loc" onclick="scanWifi()">Scan</button>
+</div>
+<div id="scanStatus" class="locstatus"></div>
+<label>Or enter SSID manually</label>
+<input type="text" name="wifi_ssid" id="ssidInput" maxlength="63" value="%s" autocomplete="off">
+<label>WiFi Password</label>
+<input type="password" name="wifi_pass" maxlength="63" placeholder="leave blank to keep current" autocomplete="new-password">
 <label>Brightness (0-255)</label>
 <input type="number" name="brightness" min="0" max="255" value="%d">
 <label>Poll interval (minutes)</label>
@@ -150,6 +163,28 @@ var initVals={};
   });
 })();
 function setLocStatus(m){document.getElementById('locStatus').textContent=m;}
+function scanWifi(){
+  var st=document.getElementById('scanStatus');
+  st.textContent='Scanning\u2026';
+  fetch('/scan')
+    .then(function(r){if(!r.ok)throw 0;return r.json();})
+    .then(function(nets){
+      var sel=document.getElementById('ssidSelect');
+      sel.innerHTML='<option value="">-- select a network --</option>';
+      if(!nets.length){st.textContent='No networks found';return;}
+      nets.forEach(function(n){
+        var o=document.createElement('option');
+        o.value=n.ssid;
+        o.textContent=n.ssid+' ('+n.rssi+' dBm)';
+        sel.appendChild(o);
+      });
+      st.textContent='Found '+nets.length+' network'+(nets.length===1?'':'s');
+    })
+    .catch(function(){st.textContent='Scan failed';});
+}
+document.getElementById('ssidSelect').addEventListener('change',function(){
+  if(this.value)document.getElementById('ssidInput').value=this.value;
+});
 function lookupZip(){
   var cc=document.getElementById('countrySelect').value;
   var z=document.getElementById('zipInput').value.trim();

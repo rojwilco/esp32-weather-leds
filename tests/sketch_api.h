@@ -29,6 +29,8 @@
 #define DEFAULT_FREEZE_THR_F    32.0f
 #define DEFAULT_HEAT_THR_F      95.0f
 #define DEFAULT_PRECIP_THR_PCT  50.0f
+#define DEFAULT_WIFI_SSID       ""
+#define DEFAULT_WIFI_PASS       ""
 
 #define FADE_STEP         3
 #define FADE_INTERVAL_MS  6
@@ -68,15 +70,21 @@ extern char     cfg_longitude[16];
 extern float    cfg_freeze_thr;
 extern float    cfg_heat_thr;
 extern float    cfg_precip_thr;
+extern char     cfg_wifi_ssid[64];
+extern char     cfg_wifi_pass[64];
 extern CRGB     leds[NUM_LEDS];
 extern LEDState ledStates[NUM_LEDS];
 extern bool     g_forceRepoll;
+extern bool     g_ap_mode;
+extern bool     g_pendingConnect;
 
 // ── Sketch functions (defined in sketch_wrapper.cpp via sketch_lib) ───────────
 CRGB tempToColor(float tempF);
 bool fetchForecast(DayForecast* outDays);
 void pollWeather();
 void tickAnimations();
+void startAPMode();
 void handleRoot();
 void handleSave();
 void handlePollNow();
+void handleScan();

@@ -45,63 +45,108 @@ protected:
 
 // ── Alert priority ────────────────────────────────────────────────────────────
 
+// Description: A day with moderate temperature and low precipitation (20% rain,
+// 75°F max, 55°F min) produces ALERT_NONE on every LED.
 TEST_F(PollWeatherTest, NoAlertForNormalConditions) {
+    RecordProperty("description",
+        "A day with moderate temperature and low precipitation (20% rain, "
+        "75F max, 55F min) produces ALERT_NONE on every LED.");
     setAllDays(75.0f, 55.0f, 20.0f);
     pollWeather();
     for (int i = 0; i < NUM_LEDS; i++)
         EXPECT_EQ(ledStates[i].alert, ALERT_NONE) << "LED " << i;
 }
 
+// Description: Precipitation at exactly the rain threshold (50%) triggers
+// ALERT_RAIN; the threshold boundary is inclusive.
 TEST_F(PollWeatherTest, RainAlertAtThreshold) {
+    RecordProperty("description",
+        "Precipitation at exactly the rain threshold (50%) triggers ALERT_RAIN; "
+        "the threshold boundary is inclusive.");
     setAllDays(75.0f, 55.0f, 50.0f);   // precip == cfg_precip_thr
     pollWeather();
     for (int i = 0; i < NUM_LEDS; i++)
         EXPECT_EQ(ledStates[i].alert, ALERT_RAIN) << "LED " << i;
 }
 
+// Description: Precipitation above the rain threshold (80%) triggers ALERT_RAIN
+// on all LEDs.
 TEST_F(PollWeatherTest, RainAlertAboveThreshold) {
+    RecordProperty("description",
+        "Precipitation above the rain threshold (80%) triggers ALERT_RAIN "
+        "on all LEDs.");
     setAllDays(75.0f, 55.0f, 80.0f);
     pollWeather();
     for (int i = 0; i < NUM_LEDS; i++)
         EXPECT_EQ(ledStates[i].alert, ALERT_RAIN) << "LED " << i;
 }
 
+// Description: A minimum temperature below 32°F (28°F) triggers ALERT_FREEZE
+// even when precipitation is low.
 TEST_F(PollWeatherTest, FreezeAlertBelowThreshold) {
+    RecordProperty("description",
+        "A minimum temperature below 32F (28F) triggers ALERT_FREEZE "
+        "even when precipitation is low.");
     setAllDays(50.0f, 28.0f, 10.0f);
     pollWeather();
     for (int i = 0; i < NUM_LEDS; i++)
         EXPECT_EQ(ledStates[i].alert, ALERT_FREEZE) << "LED " << i;
 }
 
+// Description: A minimum temperature at exactly 32°F triggers ALERT_FREEZE;
+// the freeze threshold boundary is inclusive.
 TEST_F(PollWeatherTest, FreezeAlertAtThreshold) {
+    RecordProperty("description",
+        "A minimum temperature at exactly 32F triggers ALERT_FREEZE; "
+        "the freeze threshold boundary is inclusive.");
     setAllDays(50.0f, 32.0f, 10.0f);   // tempMin == cfg_freeze_thr
     pollWeather();
     for (int i = 0; i < NUM_LEDS; i++)
         EXPECT_EQ(ledStates[i].alert, ALERT_FREEZE) << "LED " << i;
 }
 
+// Description: A maximum temperature at exactly the heat threshold (95°F)
+// triggers ALERT_HEAT; the heat threshold boundary is inclusive.
 TEST_F(PollWeatherTest, HeatAlertAtThreshold) {
+    RecordProperty("description",
+        "A maximum temperature at exactly the heat threshold (95F) triggers "
+        "ALERT_HEAT; the heat threshold boundary is inclusive.");
     setAllDays(95.0f, 70.0f, 10.0f);   // tempMax == cfg_heat_thr
     pollWeather();
     for (int i = 0; i < NUM_LEDS; i++)
         EXPECT_EQ(ledStates[i].alert, ALERT_HEAT) << "LED " << i;
 }
 
+// Description: A maximum temperature above the heat threshold (100°F) triggers
+// ALERT_HEAT on all LEDs.
 TEST_F(PollWeatherTest, HeatAlertAboveThreshold) {
+    RecordProperty("description",
+        "A maximum temperature above the heat threshold (100F) triggers "
+        "ALERT_HEAT on all LEDs.");
     setAllDays(100.0f, 75.0f, 10.0f);
     pollWeather();
     for (int i = 0; i < NUM_LEDS; i++)
         EXPECT_EQ(ledStates[i].alert, ALERT_HEAT) << "LED " << i;
 }
 
+// Description: When rain, freeze, and heat conditions all apply simultaneously,
+// ALERT_RAIN takes the highest priority.
 TEST_F(PollWeatherTest, RainBeatsFreezeAndHeat) {
+    RecordProperty("description",
+        "When rain, freeze, and heat conditions all apply simultaneously, "
+        "ALERT_RAIN takes the highest priority.");
     setAllDays(100.0f, 28.0f, 70.0f);  // all three conditions simultaneously
     pollWeather();
     for (int i = 0; i < NUM_LEDS; i++)
         EXPECT_EQ(ledStates[i].alert, ALERT_RAIN) << "LED " << i;
 }
 
+// Description: When both freeze and heat conditions apply but not rain,
+// ALERT_FREEZE takes priority over ALERT_HEAT.
 TEST_F(PollWeatherTest, FreezeBeatsHeat) {
+    RecordProperty("description",
+        "When both freeze and heat conditions apply but not rain, "
+        "ALERT_FREEZE takes priority over ALERT_HEAT.");
     setAllDays(100.0f, 28.0f, 10.0f);  // high max AND low min, no rain
     pollWeather();
     for (int i = 0; i < NUM_LEDS; i++)
@@ -110,14 +155,24 @@ TEST_F(PollWeatherTest, FreezeBeatsHeat) {
 
 // ── LED state initialisation ──────────────────────────────────────────────────
 
+// Description: A successful weather poll calls FastLED.show() exactly once,
+// regardless of how many LEDs are updated.
 TEST_F(PollWeatherTest, SuccessCallsShowOnce) {
+    RecordProperty("description",
+        "A successful weather poll calls FastLED.show() exactly once, "
+        "regardless of how many LEDs are updated.");
     setAllDays(75.0f, 55.0f, 10.0f);
     FastLED.resetShowCount();
     pollWeather();
     EXPECT_EQ(FastLED.showCount, 1);
 }
 
+// Description: When the HTTP fetch fails, all LEDs are set to a dim white
+// (10,10,10) error color, ALERT_NONE is set, and show() is called once.
 TEST_F(PollWeatherTest, FailedFetchShowsDimWhite) {
+    RecordProperty("description",
+        "When the HTTP fetch fails, all LEDs are set to a dim white (10,10,10) "
+        "error color, ALERT_NONE is set, and show() is called once.");
     g_mock_http_code = 500;
     FastLED.resetShowCount();
     pollWeather();
@@ -128,14 +183,24 @@ TEST_F(PollWeatherTest, FailedFetchShowsDimWhite) {
     }
 }
 
+// Description: A day with a 90°F average produces a base color with red=255 and
+// blue=0, confirming the temperature-to-color mapping runs through the full poll path.
 TEST_F(PollWeatherTest, HotDayBaseColorIsReddish) {
+    RecordProperty("description",
+        "A day with a 90F average produces a base color with red=255 and blue=0, "
+        "confirming the temperature-to-color mapping runs through the full poll path.");
     setAllDays(90.0f, 90.0f, 10.0f);   // avg == 90 F -> hue 0 -> red
     pollWeather();
     EXPECT_EQ(ledStates[0].baseColor.r, 255);
     EXPECT_EQ(ledStates[0].baseColor.b, 0);
 }
 
+// Description: After a poll, alert LEDs have blendAmt=0, fadeDir=+1, and
+// holdUntil set to the poll time plus HOLD_MS, ready to start the animation cycle.
 TEST_F(PollWeatherTest, AnimationInitialisedAtPollTime) {
+    RecordProperty("description",
+        "After a poll, alert LEDs have blendAmt=0, fadeDir=+1, and holdUntil "
+        "set to the poll time plus HOLD_MS, ready to start the animation cycle.");
     setAllDays(100.0f, 28.0f, 70.0f);   // rain alert
     g_mock_millis = 5000;
     pollWeather();
@@ -146,7 +211,12 @@ TEST_F(PollWeatherTest, AnimationInitialisedAtPollTime) {
     }
 }
 
+// Description: Each LED's alert is determined independently by its own day's
+// data, so different LEDs can show different alert types in the same poll.
 TEST_F(PollWeatherTest, PerLedAlertsAreIndependent) {
+    RecordProperty("description",
+        "Each LED's alert is determined independently by its own day's data, "
+        "so different LEDs can show different alert types in the same poll.");
     float mx[6] = {75.0f, 100.0f, 45.0f, 70.0f, 70.0f, 70.0f};
     float mn[6] = {55.0f,  70.0f, 28.0f, 50.0f, 50.0f, 50.0f};
     float pr[6] = {60.0f,  10.0f, 10.0f, 10.0f, 10.0f, 10.0f};

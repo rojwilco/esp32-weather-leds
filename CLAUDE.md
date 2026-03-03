@@ -20,9 +20,15 @@ arduino-cli monitor --port /dev/cu.usbserial-* --config baudrate=115200
 Required board package: **esp32 by Espressif Systems** (3.3.7+)
 Required libraries: **FastLED** 3.10.3, **ArduinoJson** v7.x (v6 is incompatible)
 
-## Secrets
+## First-boot WiFi setup
 
-`secrets.h` is gitignored. Copy `secrets.h.example` → `secrets.h` and fill in `WIFI_SSID` and `WIFI_PASSWORD`. Latitude/longitude are configured at runtime via the web UI.
+WiFi credentials are configured at runtime — there is no `secrets.h`.
+On first boot (or whenever no credentials are saved in NVS), the device
+starts in AP mode: it broadcasts an open network named **ESP32-Weather**.
+Connect to that network, then visit `http://192.168.4.1/` to enter your
+SSID (use the Scan button) and password. After saving, the device reboots
+into normal station mode. Credentials persist in NVS across reboots.
+Latitude/longitude are also set via the web UI.
 
 ## Architecture
 

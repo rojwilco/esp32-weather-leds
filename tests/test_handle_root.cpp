@@ -22,46 +22,81 @@ protected:
     }
 };
 
+// Description: handleRoot() responds with HTTP 200, confirming the handler
+// is registered and reachable.
 TEST_F(HandleRootTest, Returns200WithHtml) {
+    RecordProperty("description",
+        "handleRoot() responds with HTTP 200, confirming the handler "
+        "is registered and reachable.");
     handleRoot();
     EXPECT_EQ(g_mock_last_send_code, 200);
 }
 
+// Description: The rendered HTML page contains a closing </html> tag, confirming
+// the static page buffer is large enough to hold the full output without truncation.
 TEST_F(HandleRootTest, BodyNotTruncated) {
+    RecordProperty("description",
+        "The rendered HTML page contains a closing </html> tag, confirming "
+        "the static page buffer is large enough to hold the full output without truncation.");
     handleRoot();
     std::string body = g_mock_last_send_body.c_str();
     EXPECT_NE(body.rfind("</html>"), std::string::npos) << "page buffer too small — body was truncated";
 }
 
+// Description: The config page includes a country dropdown with the id
+// 'countrySelect' and 'US' selected by default.
 TEST_F(HandleRootTest, ContainsCountrySelect) {
+    RecordProperty("description",
+        "The config page includes a country dropdown with the id "
+        "'countrySelect' and 'US' selected by default.");
     handleRoot();
     std::string body = g_mock_last_send_body.c_str();
     EXPECT_NE(body.find("countrySelect"), std::string::npos);
     EXPECT_NE(body.find("value=\"US\" selected"), std::string::npos);
 }
 
+// Description: The current cfg_latitude and cfg_longitude values are injected
+// into the rendered HTML so the form shows the device's configured location.
 TEST_F(HandleRootTest, InjectsConfigValues) {
+    RecordProperty("description",
+        "The current cfg_latitude and cfg_longitude values are injected into "
+        "the rendered HTML so the form shows the device's configured location.");
     handleRoot();
     std::string body = g_mock_last_send_body.c_str();
     EXPECT_NE(body.find(DEFAULT_LATITUDE),  std::string::npos);
     EXPECT_NE(body.find(DEFAULT_LONGITUDE), std::string::npos);
 }
 
+// Description: When the device is in station mode (g_ap_mode=false), the AP
+// setup banner is hidden via 'display:none' so it doesn't clutter normal use.
 TEST_F(HandleRootTest, APBannerHiddenInStaMode) {
+    RecordProperty("description",
+        "When the device is in station mode (g_ap_mode=false), the AP setup "
+        "banner is hidden via 'display:none' so it doesn't clutter normal use.");
     g_ap_mode = false;
     handleRoot();
     std::string body = g_mock_last_send_body.c_str();
     EXPECT_NE(body.find("display:none"), std::string::npos);
 }
 
+// Description: When the device is in AP mode (g_ap_mode=true), the AP setup
+// banner is shown via 'display:block' to guide the user through WiFi configuration.
 TEST_F(HandleRootTest, APBannerVisibleInAPMode) {
+    RecordProperty("description",
+        "When the device is in AP mode (g_ap_mode=true), the AP setup banner "
+        "is shown via 'display:block' to guide the user through WiFi configuration.");
     g_ap_mode = true;
     handleRoot();
     std::string body = g_mock_last_send_body.c_str();
     EXPECT_NE(body.find("display:block"), std::string::npos);
 }
 
+// Description: The current cfg_wifi_ssid value is injected into the rendered
+// HTML so the form pre-fills the SSID field with the device's saved network name.
 TEST_F(HandleRootTest, InjectsWifiSsid) {
+    RecordProperty("description",
+        "The current cfg_wifi_ssid value is injected into the rendered HTML so "
+        "the form pre-fills the SSID field with the device's saved network name.");
     strncpy(cfg_wifi_ssid, "MyNetwork", sizeof(cfg_wifi_ssid));
     handleRoot();
     std::string body = g_mock_last_send_body.c_str();

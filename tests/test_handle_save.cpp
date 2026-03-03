@@ -25,86 +25,151 @@ protected:
     }
 };
 
+// Description: Submitting a new latitude value sets g_forceRepoll=true so the
+// next loop() iteration re-fetches weather for the new location.
 TEST_F(HandleSaveTest, NewLatSetsForceRepoll) {
+    RecordProperty("description",
+        "Submitting a new latitude value sets g_forceRepoll=true so the "
+        "next loop() iteration re-fetches weather for the new location.");
     g_mock_server_args["latitude"]  = "40.7128";
     g_mock_server_args["longitude"] = DEFAULT_LONGITUDE;
     handleSave();
     EXPECT_TRUE(g_forceRepoll);
 }
 
+// Description: Submitting a new longitude value sets g_forceRepoll=true so the
+// next loop() iteration re-fetches weather for the new location.
 TEST_F(HandleSaveTest, NewLonSetsForceRepoll) {
+    RecordProperty("description",
+        "Submitting a new longitude value sets g_forceRepoll=true so the "
+        "next loop() iteration re-fetches weather for the new location.");
     g_mock_server_args["latitude"]  = DEFAULT_LATITUDE;
     g_mock_server_args["longitude"] = "-74.0060";
     handleSave();
     EXPECT_TRUE(g_forceRepoll);
 }
 
+// Description: Submitting the same latitude and longitude as currently
+// configured does not set g_forceRepoll, avoiding a redundant weather fetch.
 TEST_F(HandleSaveTest, UnchangedLocationNoRepoll) {
+    RecordProperty("description",
+        "Submitting the same latitude and longitude as currently configured "
+        "does not set g_forceRepoll, avoiding a redundant weather fetch.");
     g_mock_server_args["latitude"]  = DEFAULT_LATITUDE;
     g_mock_server_args["longitude"] = DEFAULT_LONGITUDE;
     handleSave();
     EXPECT_FALSE(g_forceRepoll);
 }
 
+// Description: A brightness value above the maximum (300) is clamped to 255
+// before being applied and saved, preventing out-of-range FastLED values.
 TEST_F(HandleSaveTest, BrightnessClampedAt255) {
+    RecordProperty("description",
+        "A brightness value above the maximum (300) is clamped to 255 before "
+        "being applied and saved, preventing out-of-range FastLED values.");
     g_mock_server_args["brightness"] = "300";
     handleSave();
     EXPECT_EQ(cfg_brightness, 255);
 }
 
+// Description: A negative brightness value (-5) is clamped to 0 before being
+// applied and saved, preventing underflow.
 TEST_F(HandleSaveTest, BrightnessClampedAt0) {
+    RecordProperty("description",
+        "A negative brightness value (-5) is clamped to 0 before being applied "
+        "and saved, preventing underflow.");
     g_mock_server_args["brightness"] = "-5";
     handleSave();
     EXPECT_EQ(cfg_brightness, 0);
 }
 
+// Description: A poll interval above the maximum (9999 minutes) is clamped to
+// 1440 (24 hours) before being saved, preventing unreasonably long poll gaps.
 TEST_F(HandleSaveTest, PollMinClampedTo1440) {
+    RecordProperty("description",
+        "A poll interval above the maximum (9999 minutes) is clamped to 1440 "
+        "(24 hours) before being saved, preventing unreasonably long poll gaps.");
     g_mock_server_args["poll_min"] = "9999";
     handleSave();
     EXPECT_EQ(cfg_poll_min, 1440);
 }
 
+// Description: If cold_temp is submitted higher than hot_temp (an invalid
+// range), hot_temp is auto-corrected to cold_temp+1 to maintain a valid range.
 TEST_F(HandleSaveTest, ColdHotTempCorrected) {
+    RecordProperty("description",
+        "If cold_temp is submitted higher than hot_temp (an invalid range), "
+        "hot_temp is auto-corrected to cold_temp+1 to maintain a valid range.");
     g_mock_server_args["cold_temp"] = "50";
     g_mock_server_args["hot_temp"]  = "40";
     handleSave();
     EXPECT_FLOAT_EQ(cfg_hot_temp, 51.0f);
 }
 
+// Description: After processing the form, handleSave() responds with a 303
+// redirect to "/" to prevent duplicate form submission on page refresh.
 TEST_F(HandleSaveTest, RedirectsToRoot) {
+    RecordProperty("description",
+        "After processing the form, handleSave() responds with a 303 redirect "
+        "to \"/\" to prevent duplicate form submission on page refresh.");
     handleSave();
     EXPECT_EQ(g_mock_last_send_code, 303);
     EXPECT_EQ(std::string(g_mock_last_redirect.c_str()), "/");
 }
 
+// Description: A valid brightness value is written to NVS under the "brightness"
+// key so the setting survives a device reboot.
 TEST_F(HandleSaveTest, PersistsToBrightness) {
+    RecordProperty("description",
+        "A valid brightness value is written to NVS under the \"brightness\" key "
+        "so the setting survives a device reboot.");
     g_mock_server_args["brightness"] = "100";
     handleSave();
     EXPECT_EQ(g_mock_prefs_store["brightness"], "100");
 }
 
+// Description: Submitting a new SSID sets g_pendingConnect=true and updates
+// cfg_wifi_ssid, triggering a WiFi reconnect on the next loop() iteration.
 TEST_F(HandleSaveTest, NewSsidSetsPendingConnect) {
+    RecordProperty("description",
+        "Submitting a new SSID sets g_pendingConnect=true and updates "
+        "cfg_wifi_ssid, triggering a WiFi reconnect on the next loop() iteration.");
     g_mock_server_args["wifi_ssid"] = "MyNetwork";
     handleSave();
     EXPECT_TRUE(g_pendingConnect);
     EXPECT_EQ(std::string(cfg_wifi_ssid), "MyNetwork");
 }
 
+// Description: Submitting the same SSID that is already configured does not
+// set g_pendingConnect, avoiding a needless WiFi reconnect.
 TEST_F(HandleSaveTest, UnchangedSsidNoPendingConnect) {
+    RecordProperty("description",
+        "Submitting the same SSID that is already configured does not set "
+        "g_pendingConnect, avoiding a needless WiFi reconnect.");
     // ssid is already "" (DEFAULT_WIFI_SSID); sending "" again = no change
     g_mock_server_args["wifi_ssid"] = "";
     handleSave();
     EXPECT_FALSE(g_pendingConnect);
 }
 
+// Description: Submitting a new password (with the same SSID) sets
+// g_pendingConnect=true so the updated credentials are applied on reconnect.
 TEST_F(HandleSaveTest, PasswordSetsPendingConnect) {
+    RecordProperty("description",
+        "Submitting a new password (with the same SSID) sets g_pendingConnect=true "
+        "so the updated credentials are applied on reconnect.");
     g_mock_server_args["wifi_pass"] = "secret123";
     handleSave();
     EXPECT_TRUE(g_pendingConnect);
     EXPECT_EQ(std::string(cfg_wifi_pass), "secret123");
 }
 
+// Description: Submitting an empty password field leaves the stored password
+// unchanged and does not set g_pendingConnect.
 TEST_F(HandleSaveTest, EmptyPasswordIgnored) {
+    RecordProperty("description",
+        "Submitting an empty password field leaves the stored password unchanged "
+        "and does not set g_pendingConnect.");
     strncpy(cfg_wifi_pass, "existing", sizeof(cfg_wifi_pass));
     g_mock_server_args["wifi_pass"] = "";
     handleSave();
@@ -113,7 +178,12 @@ TEST_F(HandleSaveTest, EmptyPasswordIgnored) {
     EXPECT_EQ(std::string(cfg_wifi_pass), "existing");
 }
 
+// Description: WiFi SSID and password are both written to NVS so they survive
+// a reboot and are restored by loadConfig() on next boot.
 TEST_F(HandleSaveTest, WifiCredentialsPersistedToNvs) {
+    RecordProperty("description",
+        "WiFi SSID and password are both written to NVS so they survive a reboot "
+        "and are restored by loadConfig() on next boot.");
     g_mock_server_args["wifi_ssid"] = "HomeWifi";
     g_mock_server_args["wifi_pass"] = "pass123";
     handleSave();

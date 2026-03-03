@@ -63,10 +63,64 @@ Test suites:
 - `test_animations` — per-tick fade/blend animation state machine
 - `test_handle_root` — `handleRoot()` rendering: HTTP 200, buffer not truncated, country select present with US default, config values injected
 - `test_handle_save` — `handleSave()` logic: location-change repoll flag, brightness/poll_min clamping, cold/hot temp correction, 303 redirect, NVS persistence
+- `test_handle_scan` — WiFi scan JSON output: sorting by RSSI, deduplication
 
 To add a new test file, create `tests/test_<name>.cpp` and add `add_sketch_test(test_<name>.cpp)` to `tests/CMakeLists.txt`.
 
-**VS Code:** Install the **C++ TestMate** extension (`matepek.vscode-catch2-test-adapter`). `.vscode/settings.json` is already configured to point it at `tests/build/test_*`. Build the tests first so the binaries exist for TestMate to discover.
+### Test style
+
+Every `TEST_F` must include a 1–2 sentence description in two places:
+
+1. A `// Description:` comment immediately above the `TEST_F` line.
+2. A `RecordProperty("description", "...")` call as the **first statement** in the test body. This embeds the description as a `<property>` element in the JUnit XML output consumed by CI.
+
+```cpp
+// Description: Temperatures far below the cold endpoint clamp to hue 160 (blue)
+// rather than wrapping or going negative.
+TEST_F(TempToColorTest, BelowColdClampsToBlue) {
+    RecordProperty("description",
+        "Temperatures far below the cold endpoint clamp to hue 160 (blue) "
+        "rather than wrapping or going negative.");
+    // ... assertions ...
+}
+```
+
+The description should state *what property is being verified and why it matters*, not restate the test name. `RecordProperty` is a static method inherited from `::testing::Test`; call it unqualified (not `::testing::RecordProperty`).
+
+**VS Code (optional):** To enable inline test running and results in the IDE, install the **C++ TestMate** extension (`matepek.vscode-catch2-test-adapter`) and add the following to your `.vscode/` config files:
+
+`.vscode/tasks.json` — defines a build task that runs `make build` in `tests/`:
+```json
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Build tests",
+      "type": "shell",
+      "command": "make build",
+      "options": { "cwd": "${workspaceFolder}/tests" },
+      "group": { "kind": "build", "isDefault": true },
+      "presentation": { "reveal": "silent", "revealProblems": "onProblem" },
+      "problemMatcher": "$gcc"
+    }
+  ]
+}
+```
+
+`.vscode/settings.json` — points TestMate at the test binaries and wires up the build task so tests are always rebuilt before running:
+```json
+{
+  "testMate.cpp.test.advancedExecutables": [
+    {
+      "pattern": "tests/build/test_*",
+      "runTask": { "before": ["Build tests"] }
+    }
+  ],
+  "C_Cpp.default.compileCommands": "tests/build/compile_commands.json"
+}
+```
+
+With this in place, clicking **Run tests** in TestMate automatically runs `make build` first, and `Cmd+Shift+B` triggers the build directly. The `compile_commands.json` setting gives the C++ extension accurate IntelliSense for the test files.
 
 **GitHub Actions:** `.github/workflows/tests.yml` runs on every push and PR to any branch. It configures, builds, and runs the tests on `ubuntu-latest`, then publishes per-test results via `dorny/test-reporter` as a check on the commit. The CMake build directory (including FetchContent downloads) is cached keyed on `tests/CMakeLists.txt` to speed up subsequent runs.
 

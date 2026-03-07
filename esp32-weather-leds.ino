@@ -10,6 +10,7 @@
 #include <Preferences.h>
 #include <WebServer.h>
 #include "config_html.h"
+#include "version.h"
 
 #define LED_PIN           23
 #define NUM_LEDS          6
@@ -307,6 +308,7 @@ void handleRoot() {
            cfg_cold_temp, cfg_hot_temp,
            cfg_latitude, cfg_longitude,
            cfg_freeze_thr, cfg_heat_thr, cfg_precip_thr,
+           FIRMWARE_VERSION, FIRMWARE_BUILD_TIMESTAMP,
            ip.c_str());
   server.send(200, "text/html", page);
 }
@@ -412,7 +414,8 @@ void handleScan() {
 void setup() {
   Serial.begin(115200);
   delay(500);
-  Serial.println("\n\nESP32 Temp Forecast LED Indicator — starting up");
+  Serial.println("\n\nESP32 Temp Forecast LED Indicator v" FIRMWARE_VERSION
+                 " (built " FIRMWARE_BUILD_TIMESTAMP ") — starting up");
 
   loadConfig();
 

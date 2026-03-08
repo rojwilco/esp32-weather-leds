@@ -17,22 +17,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install arduino-cli
+        uses: arduino/setup-arduino-cli@v2
+
       - name: Cache Arduino data
         uses: actions/cache@v4
         with:
           path: ~/.arduino15
           key: arduino-${{ runner.os }}-esp32-3.3.7-fastled-3.10.3-arduinojson-7
 
-      - name: Install arduino-cli
-        run: |
-          curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | sh
-          echo "$HOME/bin" >> $GITHUB_PATH
-
       - name: Install ESP32 platform
         run: |
-          arduino-cli config init
-          arduino-cli config add board_manager.additional_urls \
-            https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
+          arduino-cli config init --overwrite
+          arduino-cli config set board_manager.additional_urls \
+            https://espressif.github.io/arduino-esp32/package_esp32_index.json
           arduino-cli core update-index
           arduino-cli core install esp32:esp32@3.3.7
 
@@ -61,22 +59,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install arduino-cli
+        uses: arduino/setup-arduino-cli@v2
+
       - name: Cache Arduino data
         uses: actions/cache@v4
         with:
           path: ~/.arduino15
           key: arduino-${{ runner.os }}-esp32-3.3.7-fastled-3.10.3-arduinojson-7
 
-      - name: Install arduino-cli
-        run: |
-          curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | sh
-          echo "$HOME/bin" >> $GITHUB_PATH
-
       - name: Install ESP32 platform
         run: |
-          arduino-cli config init
-          arduino-cli config add board_manager.additional_urls \
-            https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
+          arduino-cli config init --overwrite
+          arduino-cli config set board_manager.additional_urls \
+            https://espressif.github.io/arduino-esp32/package_esp32_index.json
           arduino-cli core update-index
           arduino-cli core install esp32:esp32@3.3.7
 

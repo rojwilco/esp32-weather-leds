@@ -147,6 +147,14 @@ select{width:100%%;box-sizing:border-box;background:#2a2a2a;color:#e0e0e0;border
 <form method="POST" action="/poll">
 <button class="btn poll" type="submit">Poll Now</button>
 </form>
+<hr style="border:none;border-top:2px solid #333;margin:2.5em 0 1.5em">
+<h2 style="font-size:1em;margin:0 0 .5em;color:#888;text-transform:uppercase;letter-spacing:.08em">Firmware Update</h2>
+<form method="POST" action="/update" enctype="multipart/form-data">
+<label>Select .bin file</label>
+<input type="file" name="firmware" accept=".bin" style="margin-top:.5em;color:#e0e0e0">
+<br>
+<button class="btn poll" type="submit" style="margin-top:.8em">Upload &amp; Install</button>
+</form>
 <div class="footer">Firmware: %s (built %s) &nbsp;|&nbsp; Device IP: %s</div>
 <script>
 var initVals={};

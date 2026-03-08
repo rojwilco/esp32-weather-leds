@@ -5,6 +5,7 @@
 #include <ArduinoJson.h>
 #ifndef UNIT_TESTING
 #include <DNSServer.h>
+#include <Update.h>
 #endif
 
 #include <Preferences.h>
@@ -269,10 +270,12 @@ void tickAnimations() {
   if (changed) FastLED.show();
 }
 
-// Forward declarations for handlers used by startAPMode()
+// Forward declarations for handlers used by startAPMode() and setup()
 void handleRoot();
 void handleSave();
 void handleScan();
+void handleOtaUpdate();
+void handleOtaUpload();
 
 void startAPMode() {
   g_ap_mode = true;
@@ -411,6 +414,40 @@ void handleScan() {
   server.send(200, "application/json", buf);
 }
 
+void handleOtaUpload() {
+  HTTPUpload& upload = server.upload();
+  if (upload.status == UPLOAD_FILE_START) {
+    Serial.printf("OTA: start, file=%s\n", upload.filename.c_str());
+    if (!Update.begin(UPDATE_SIZE_UNKNOWN)) {
+      Serial.printf("OTA: begin failed: %s\n", Update.errorString());
+    }
+  } else if (upload.status == UPLOAD_FILE_WRITE) {
+    if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
+      Serial.printf("OTA: write error: %s\n", Update.errorString());
+    }
+  } else if (upload.status == UPLOAD_FILE_END) {
+    if (Update.end(true)) {
+      Serial.printf("OTA: success, %u bytes\n", upload.totalSize);
+    } else {
+      Serial.printf("OTA: end failed: %s\n", Update.errorString());
+    }
+  }
+}
+
+void handleOtaUpdate() {
+  if (Update.hasError()) {
+    server.send(500, "text/plain",
+                String("Update failed: ") + Update.errorString());
+  } else {
+    server.sendHeader("Location", "/");
+    server.send(303);
+#ifndef UNIT_TESTING
+    delay(200);
+    ESP.restart();
+#endif
+  }
+}
+
 void setup() {
   Serial.begin(115200);
   delay(500);
@@ -450,10 +487,11 @@ void setup() {
 
   Serial.printf("WiFi connected, IP: %s\n", WiFi.localIP().toString().c_str());
 
-  server.on("/",     HTTP_GET,  handleRoot);
-  server.on("/save", HTTP_POST, handleSave);
-  server.on("/poll", HTTP_POST, handlePollNow);
-  server.on("/scan", HTTP_GET,  handleScan);
+  server.on("/",       HTTP_GET,  handleRoot);
+  server.on("/save",   HTTP_POST, handleSave);
+  server.on("/poll",   HTTP_POST, handlePollNow);
+  server.on("/scan",   HTTP_GET,  handleScan);
+  server.on("/update", HTTP_POST, handleOtaUpdate, handleOtaUpload);
   server.begin();
   Serial.printf("Web UI: http://%s/\n", WiFi.localIP().toString().c_str());
 
@@ -491,7 +529,8 @@ void loop() {
       if (WiFi.status() == WL_CONNECTED) {
         g_ap_mode = false;
         Serial.printf("Connected! IP: %s\n", WiFi.localIP().toString().c_str());
-        server.on("/poll", HTTP_POST, handlePollNow);
+        server.on("/poll",   HTTP_POST, handlePollNow);
+        server.on("/update", HTTP_POST, handleOtaUpdate, handleOtaUpload);
         fill_solid(leds, NUM_LEDS, CRGB(0, 0, 0));
         FastLED.show();
         firstRun = true;

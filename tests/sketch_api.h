@@ -15,6 +15,7 @@
 #include "mocks/WiFiClientSecure.h"
 #include "mocks/Preferences.h"
 #include "mocks/WebServer.h"
+#include "mocks/Update.h"
 #include "../version.h"
 
 // ── Sketch compile-time constants ────────────────────────────────────────────
@@ -89,3 +90,5 @@ void handleRoot();
 void handleSave();
 void handlePollNow();
 void handleScan();
+void handleOtaUpdate();
+void handleOtaUpload();

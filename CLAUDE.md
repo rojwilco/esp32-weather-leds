@@ -122,7 +122,9 @@ The description should state *what property is being verified and why it matters
 
 With this in place, clicking **Run tests** in TestMate automatically runs `make build` first, and `Cmd+Shift+B` triggers the build directly. The `compile_commands.json` setting gives the C++ extension accurate IntelliSense for the test files.
 
-**GitHub Actions:** `.github/workflows/tests.yml` runs on every push and PR to any branch. It configures, builds, and runs the tests on `ubuntu-latest`, then publishes per-test results via `dorny/test-reporter` as a check on the commit. The CMake build directory (including FetchContent downloads) is cached keyed on `tests/CMakeLists.txt` to speed up subsequent runs.
+**GitHub Actions:** Two workflows run in CI:
+- `.github/workflows/tests.yml` — runs on every push and PR; configures, builds, and runs the host tests on `ubuntu-latest`; publishes per-test results via `dorny/test-reporter`. The CMake build directory is cached keyed on `tests/CMakeLists.txt`.
+- `.github/workflows/build.yml` — compiles the sketch on every push, PR, and tag; on `v*.*.*` tags the `release` job additionally publishes a GitHub Release (see [Publishing a release](#publishing-a-release) below).
 
 ## Versioning
 
@@ -141,11 +143,28 @@ Firmware version is defined in `version.h` using three separate macros:
 
 **How to bump:** edit only the relevant line(s) in `version.h`. The string (`FIRMWARE_VERSION`), packed integer (`FW_VERSION_INT`), and build timestamp (`FIRMWARE_BUILD_TIMESTAMP`) all derive from those three defines automatically — no other files need touching.
 
+`FIRMWARE_VERSION` appends a `"-dev"` suffix in all local and CI branch builds (via `FW_VERSION_SUFFIX`). The release CI job overrides this to `""` via a compiler flag. Do not modify `FW_VERSION_SUFFIX` in `version.h` itself.
+
 **When to bump:** bump the version as part of the same commit that completes a feature or fix, before pushing. Every PR that changes sketch behaviour should include a version increment.
 
 The version appears:
 - On the serial monitor at boot: `v1.0.0 (built Mar  7 2026 22:19:15)`
 - In the config web UI footer: `Firmware: 1.0.0 (built ...) | Device IP: ...`
+
+### Publishing a release
+
+1. Bump the version in `version.h` and commit it (per the rules above).
+2. Create and push an annotated tag:
+   ```bash
+   git tag -a v1.2.3 -m "Release v1.2.3"
+   git push origin v1.2.3
+   ```
+3. The `release` job in `.github/workflows/build.yml` triggers automatically. It:
+   - Compiles with `-DFW_VERSION_SUFFIX=""` (no `-dev` suffix).
+   - Names the binary `esp32-weather-leds-v<version>.bin`.
+   - Creates a GitHub Release titled `v<version>` with GitHub-generated notes and the binary attached.
+
+No manual upload is needed — pushing the tag is the complete release action.
 
 ## Critical constraints
 

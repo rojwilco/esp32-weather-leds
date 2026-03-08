@@ -40,7 +40,7 @@ jobs:
           arduino-cli lib install "ArduinoJson@7.3.1"
 
       - name: Compile sketch
-        run: arduino-cli compile --fqbn esp32:esp32:d1_mini32 .
+        run: arduino-cli compile --fqbn esp32:esp32:d1_mini32 --export-binaries .
 
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
@@ -85,6 +85,7 @@ jobs:
         run: |
           VERSION=${GITHUB_REF_NAME#v}
           arduino-cli compile --fqbn esp32:esp32:d1_mini32 \
+            --export-binaries \
             --build-property "compiler.cpp.extra_flags=-DFW_VERSION_SUFFIX=\"\"" \
             .
           cp build/esp32.esp32.d1_mini32/esp32-weather-leds.ino.bin \

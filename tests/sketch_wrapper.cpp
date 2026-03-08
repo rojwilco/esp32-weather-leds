@@ -14,6 +14,7 @@
 #include "mocks/WiFiClientSecure.h"
 #include "mocks/Preferences.h"
 #include "mocks/WebServer.h"
+#include "mocks/Update.h"
 
 // Pull the entire sketch into this translation unit.
 // Angle-bracket includes inside the .ino (<FastLED.h> etc.) will resolve to

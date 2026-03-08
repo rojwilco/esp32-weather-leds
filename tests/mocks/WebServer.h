@@ -9,6 +9,24 @@
 static constexpr int HTTP_GET  = 0;
 static constexpr int HTTP_POST = 1;
 
+// ── Upload support ────────────────────────────────────────────────────────────
+enum HTTPUploadStatus {
+    UPLOAD_FILE_START,
+    UPLOAD_FILE_WRITE,
+    UPLOAD_FILE_END,
+    UPLOAD_FILE_ABORTED
+};
+
+struct HTTPUpload {
+    HTTPUploadStatus status      = UPLOAD_FILE_START;
+    String           filename;
+    uint8_t          buf[1436]   = {};
+    size_t           currentSize = 0;
+    size_t           totalSize   = 0;
+};
+
+extern HTTPUpload g_mock_upload;
+
 // ── Injectable mock state ─────────────────────────────────────────────────────
 extern std::map<std::string, std::string> g_mock_server_args;
 
@@ -25,7 +43,12 @@ struct WebServer {
     void handleClient() {}
 
     void on(const char* /*uri*/, int /*method*/, std::function<void()> /*handler*/) {}
+    void on(const char* /*uri*/, int /*method*/,
+            std::function<void()> /*handler*/,
+            std::function<void()> /*uploadHandler*/) {}
     void onNotFound(std::function<void()> /*handler*/) {}
+
+    HTTPUpload& upload() { return g_mock_upload; }
 
     bool   hasArg(const String& key) const {
         return g_mock_server_args.count(std::string(key.c_str())) > 0;

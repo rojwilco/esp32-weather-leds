@@ -61,7 +61,7 @@ Test suites:
 - `test_fetch_forecast` — JSON parsing, HTTP error handling
 - `test_poll_weather` — alert logic and LED state after a poll
 - `test_animations` — per-tick fade/blend animation state machine
-- `test_handle_root` — `handleRoot()` rendering: HTTP 200, buffer not truncated, country select present with US default, config values injected
+- `test_handle_root` — `handleRoot()` rendering: HTTP 200, buffer not truncated, country select present with US default, config values injected, firmware version and build timestamp present in footer
 - `test_handle_save` — `handleSave()` logic: location-change repoll flag, brightness/poll_min clamping, cold/hot temp correction, 303 redirect, NVS persistence
 - `test_handle_scan` — WiFi scan JSON output: sorting by RSSI, deduplication
 
@@ -123,6 +123,29 @@ The description should state *what property is being verified and why it matters
 With this in place, clicking **Run tests** in TestMate automatically runs `make build` first, and `Cmd+Shift+B` triggers the build directly. The `compile_commands.json` setting gives the C++ extension accurate IntelliSense for the test files.
 
 **GitHub Actions:** `.github/workflows/tests.yml` runs on every push and PR to any branch. It configures, builds, and runs the tests on `ubuntu-latest`, then publishes per-test results via `dorny/test-reporter` as a check on the commit. The CMake build directory (including FetchContent downloads) is cached keyed on `tests/CMakeLists.txt` to speed up subsequent runs.
+
+## Versioning
+
+Firmware version is defined in `version.h` using three separate macros:
+
+```cpp
+#define FW_VERSION_MAJOR 1
+#define FW_VERSION_MINOR 0
+#define FW_VERSION_PATCH 0
+```
+
+**When to bump** (semver rules):
+- **PATCH** — bug fixes, test additions, doc changes, no behaviour change
+- **MINOR** — new features that are backwards-compatible (new web UI field, new config option, new LED behaviour)
+- **MAJOR** — breaking changes (NVS key renames that wipe saved config, wire-protocol changes, pin reassignments)
+
+**How to bump:** edit only the relevant line(s) in `version.h`. The string (`FIRMWARE_VERSION`), packed integer (`FW_VERSION_INT`), and build timestamp (`FIRMWARE_BUILD_TIMESTAMP`) all derive from those three defines automatically — no other files need touching.
+
+**When to bump:** bump the version as part of the same commit that completes a feature or fix, before pushing. Every PR that changes sketch behaviour should include a version increment.
+
+The version appears:
+- On the serial monitor at boot: `v1.0.0 (built Mar  7 2026 22:19:15)`
+- In the config web UI footer: `Firmware: 1.0.0 (built ...) | Device IP: ...`
 
 ## Critical constraints
 

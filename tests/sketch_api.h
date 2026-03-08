@@ -15,6 +15,7 @@
 #include "mocks/WiFiClientSecure.h"
 #include "mocks/Preferences.h"
 #include "mocks/WebServer.h"
+#include "../version.h"
 
 // ── Sketch compile-time constants ────────────────────────────────────────────
 #define LED_PIN  23

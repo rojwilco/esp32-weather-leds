@@ -102,3 +102,26 @@ TEST_F(HandleRootTest, InjectsWifiSsid) {
     std::string body = g_mock_last_send_body.c_str();
     EXPECT_NE(body.find("MyNetwork"), std::string::npos);
 }
+
+// Description: The firmware version string is injected into the rendered HTML
+// so the user can confirm which build is running without connecting to serial.
+TEST_F(HandleRootTest, InjectsFirmwareVersion) {
+    RecordProperty("description",
+        "The firmware version string is injected into the rendered HTML "
+        "so the user can confirm which build is running without connecting to serial.");
+    handleRoot();
+    std::string body = g_mock_last_send_body.c_str();
+    EXPECT_NE(body.find(FIRMWARE_VERSION), std::string::npos);
+}
+
+// Description: The build timestamp label appears in the rendered HTML alongside
+// the version string so the user can distinguish rebuilds of the same version number.
+// The exact timestamp value differs per translation unit so we check for the label.
+TEST_F(HandleRootTest, InjectsBuildTimestamp) {
+    RecordProperty("description",
+        "The build timestamp label appears in the rendered HTML alongside the version "
+        "string so the user can distinguish rebuilds of the same version number.");
+    handleRoot();
+    std::string body = g_mock_last_send_body.c_str();
+    EXPECT_NE(body.find("built "), std::string::npos);
+}

@@ -147,7 +147,7 @@ select{width:100%%;box-sizing:border-box;background:#2a2a2a;color:#e0e0e0;border
 <form method="POST" action="/poll">
 <button class="btn poll" type="submit">Poll Now</button>
 </form>
-<div class="footer">Device IP: %s</div>
+<div class="footer">Firmware: %s (built %s) &nbsp;|&nbsp; Device IP: %s</div>
 <script>
 var initVals={};
 (function(){

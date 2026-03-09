@@ -136,3 +136,72 @@ TEST_F(HandleRootTest, InjectsBuildTimestamp) {
     std::string body = g_mock_last_send_body.c_str();
     EXPECT_NE(body.find("built "), std::string::npos);
 }
+
+// Description: In AP mode the main config section (brightness, temps, location)
+// is hidden so the user only sees the WiFi setup fields they need.
+TEST_F(HandleRootTest, APModeHidesMainConfig) {
+    RecordProperty("description",
+        "In AP mode the main config section (brightness, temps, location) "
+        "is hidden so the user only sees the WiFi setup fields they need.");
+    g_ap_mode = true;
+    handleRoot();
+    std::string body = g_mock_last_send_body.c_str();
+    // The main-cfg div must be present and set to display:none
+    size_t divPos = body.find("id=\"main-cfg\"");
+    ASSERT_NE(divPos, std::string::npos);
+    size_t stylePos = body.rfind("display:", divPos);
+    ASSERT_NE(stylePos, std::string::npos);
+    EXPECT_NE(body.find("display:none", stylePos), std::string::npos)
+        << "main-cfg should be hidden in AP mode";
+}
+
+// Description: In station mode the main config section is visible so the user
+// can adjust brightness, temperature thresholds, and location.
+TEST_F(HandleRootTest, StationModeShowsMainConfig) {
+    RecordProperty("description",
+        "In station mode the main config section is visible so the user "
+        "can adjust brightness, temperature thresholds, and location.");
+    g_ap_mode = false;
+    handleRoot();
+    std::string body = g_mock_last_send_body.c_str();
+    size_t divPos = body.find("id=\"main-cfg\"");
+    ASSERT_NE(divPos, std::string::npos);
+    size_t stylePos = body.rfind("display:", divPos);
+    ASSERT_NE(stylePos, std::string::npos);
+    EXPECT_NE(body.find("display:block", stylePos), std::string::npos)
+        << "main-cfg should be visible in station mode";
+}
+
+// Description: In station mode the SSID selector appears after the main config
+// section, keeping WiFi settings at the bottom for already-configured devices.
+TEST_F(HandleRootTest, StationModeSSIDAfterMainConfig) {
+    RecordProperty("description",
+        "In station mode the SSID selector appears after the main config section, "
+        "keeping WiFi settings at the bottom for already-configured devices.");
+    g_ap_mode = false;
+    handleRoot();
+    std::string body = g_mock_last_send_body.c_str();
+    size_t mainCfgPos = body.find("id=\"main-cfg\"");
+    size_t ssidPos    = body.find("id=\"ssidSelect\"");
+    ASSERT_NE(mainCfgPos, std::string::npos);
+    ASSERT_NE(ssidPos,    std::string::npos);
+    EXPECT_GT(ssidPos, mainCfgPos)
+        << "ssidSelect should appear after the main-cfg section";
+}
+
+// Description: In AP mode the Poll Now and Firmware Update sections are hidden
+// because those actions require an internet connection that isn't yet available.
+TEST_F(HandleRootTest, APModeHidesStationOnlySection) {
+    RecordProperty("description",
+        "In AP mode the Poll Now and Firmware Update sections are hidden "
+        "because those actions require an internet connection that isn't yet available.");
+    g_ap_mode = true;
+    handleRoot();
+    std::string body = g_mock_last_send_body.c_str();
+    size_t divPos = body.find("id=\"station-only\"");
+    ASSERT_NE(divPos, std::string::npos);
+    size_t stylePos = body.rfind("display:", divPos);
+    ASSERT_NE(stylePos, std::string::npos);
+    EXPECT_NE(body.find("display:none", stylePos), std::string::npos)
+        << "station-only section should be hidden in AP mode";
+}

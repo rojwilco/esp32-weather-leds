@@ -324,13 +324,16 @@ void startAPMode() {
 void handleRoot() {
   static char page[11264];
   String ip = g_ap_mode ? WiFi.softAPIP().toString() : WiFi.localIP().toString();
+  const char* stationDisplay = g_ap_mode ? "none" : "block";
   snprintf(page, sizeof(page), CONFIG_HTML,
-           g_ap_mode ? "block" : "none",
-           cfg_wifi_ssid,
+           g_ap_mode ? "block" : "none",  // AP setup banner
+           stationDisplay,                 // main-cfg section (hidden in AP mode)
            cfg_brightness, cfg_poll_min,
            cfg_cold_temp, cfg_hot_temp,
            cfg_latitude, cfg_longitude,
            cfg_freeze_thr, cfg_heat_thr, cfg_precip_thr,
+           cfg_wifi_ssid,                  // SSID field (now at bottom of form)
+           stationDisplay,                 // station-only section (poll + OTA)
            FIRMWARE_VERSION, FIRMWARE_BUILD_TIMESTAMP,
            ip.c_str());
   server.send(200, "text/html", page);

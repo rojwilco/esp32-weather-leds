@@ -277,6 +277,26 @@ void handleScan();
 void handleOtaUpdate();
 void handleOtaUpload();
 
+// Sets the DHCP hostname to "weather-leds-XXXXXX" where XXXXXX is the last
+// 3 bytes of the MAC address in lowercase hex. Must be called before WiFi.begin()
+// for the name to be registered via DHCP.
+void applyHostname() {
+  static char hostname[20];
+#ifndef UNIT_TESTING
+  // WiFi.macAddress() returns all-zeroes before WiFi.begin(), so read the
+  // base MAC via ESP.getEfuseMac() which is available at any time.
+  // getEfuseMac() packs mac[0..5] into a uint64 with mac[0] at the LSB.
+  uint64_t mac64 = ESP.getEfuseMac();
+  snprintf(hostname, sizeof(hostname), "weather-leds-%02x%02x%02x",
+           (uint8_t)(mac64 >> 24),   // mac[3]
+           (uint8_t)(mac64 >> 32),   // mac[4]
+           (uint8_t)(mac64 >> 40));  // mac[5]
+#else
+  snprintf(hostname, sizeof(hostname), "weather-leds-112233");
+#endif
+  WiFi.setHostname(hostname);
+}
+
 void startAPMode() {
   g_ap_mode = true;
   WiFi.mode(WIFI_AP);
@@ -470,6 +490,7 @@ void setup() {
   }
 
   Serial.printf("Connecting to WiFi: %s\n", cfg_wifi_ssid);
+  applyHostname();
   WiFi.begin(cfg_wifi_ssid, cfg_wifi_pass);
 
   unsigned long start = millis();
@@ -517,6 +538,7 @@ void loop() {
       dnsServer.stop();
 #endif
       Serial.printf("Trying to connect to \"%s\"...\n", cfg_wifi_ssid);
+      applyHostname();
       WiFi.begin(cfg_wifi_ssid, cfg_wifi_pass);
 
       unsigned long start = millis();

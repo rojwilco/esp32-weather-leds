@@ -126,6 +126,20 @@ With this in place, clicking **Run tests** in TestMate automatically runs `make 
 - `.github/workflows/tests.yml` — runs on every push and PR; configures, builds, and runs the host tests on `ubuntu-latest`; publishes per-test results via `dorny/test-reporter`. The CMake build directory is cached keyed on `tests/CMakeLists.txt`.
 - `.github/workflows/build.yml` — compiles the sketch on every push, PR, and tag; on `v*.*.*` tags the `release` job additionally publishes a GitHub Release (see [Publishing a release](#publishing-a-release) below).
 
+## Commit conventions
+
+When a commit closes a GitHub issue, the `Closes #N` keyword **must appear on its own line** in the commit body (not embedded in the subject line). GitHub only auto-closes issues when the keyword is on a standalone line.
+
+```
+fix: short subject line describing what changed
+
+Longer explanation of why, if needed.
+
+Closes #42
+```
+
+Do **not** write `fix: short subject (closes #42)` — GitHub will not pick that up.
+
 ## Versioning
 
 Firmware version is defined in `version.h` using three separate macros:
@@ -145,7 +159,7 @@ Firmware version is defined in `version.h` using three separate macros:
 
 `FIRMWARE_VERSION` appends a `"-dev"` suffix in all local and CI branch builds (via `FW_VERSION_SUFFIX`). The release CI job overrides this to `""` via a compiler flag. Do not modify `FW_VERSION_SUFFIX` in `version.h` itself.
 
-**When to bump:** bump the version as part of the same commit that completes a feature or fix, before pushing. Every PR that changes sketch behaviour should include a version increment.
+**When to bump:** bump the version as part of the same commit that completes a feature or fix, before pushing. Every PR that changes sketch behaviour should include a version increment. Do **not** add an additional PATCH bump for bug fixes made within the same PR that introduced the feature — the existing version increment already covers them.
 
 The version appears:
 - On the serial monitor at boot: `v1.0.0 (built Mar  7 2026 22:19:15)`

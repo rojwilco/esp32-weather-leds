@@ -23,13 +23,16 @@ extern std::vector<MockNetwork> g_mock_scan_results;
 
 // ── WiFiClass stub ────────────────────────────────────────────────────────────
 // Tests can set g_mock_wifi_status to control connection state.
-extern int g_mock_wifi_status;
+extern int         g_mock_wifi_status;
+extern std::string g_mock_wifi_hostname;
 
 struct WiFiClass {
     void begin(const char*, const char*) {}
     int  status() const { return g_mock_wifi_status; }
     void reconnect() {}
     IPAddress localIP()   const { return IPAddress{}; }
+    void      setHostname(const char* name) { g_mock_wifi_hostname = name; }
+    String    macAddress() const { return String("AA:BB:CC:11:22:33"); }
 
     // AP mode
     void      mode(int) {}

@@ -85,6 +85,7 @@ CRGB tempToColor(float tempF);
 bool fetchForecast(DayForecast* outDays);
 void pollWeather();
 void tickAnimations();
+void applyHostname();
 void startAPMode();
 void handleRoot();
 void handleSave();

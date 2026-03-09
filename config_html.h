@@ -26,18 +26,7 @@ select{width:100%%;box-sizing:border-box;background:#2a2a2a;color:#e0e0e0;border
 <h1>⛅ Weather LEDs Config</h1>
 <div style="display:%s;background:#1a2a3a;border:1px solid #2a5a8a;border-radius:4px;padding:.8em;margin-bottom:1em;color:#6aaddf">&#9432; Setup mode &mdash; connect to <strong>ESP32-Weather</strong>, then enter your WiFi credentials below and save.</div>
 <form method="POST" action="/save">
-<label>WiFi Network (SSID)</label>
-<div class="locrow">
-<select id="ssidSelect" style="grid-column:1/3">
-<option value="">-- tap Scan to see networks --</option>
-</select>
-<button type="button" class="btn loc" onclick="scanWifi()">Scan</button>
-</div>
-<div id="scanStatus" class="locstatus"></div>
-<label>Or enter SSID manually</label>
-<input type="text" name="wifi_ssid" id="ssidInput" maxlength="63" value="%s" autocomplete="off">
-<label>WiFi Password</label>
-<input type="password" name="wifi_pass" maxlength="63" placeholder="leave blank to keep current" autocomplete="new-password">
+<div id="main-cfg" style="display:%s">
 <label>Brightness (0-255)</label>
 <input type="number" name="brightness" min="0" max="255" value="%d">
 <label>Poll interval (minutes)</label>
@@ -142,9 +131,23 @@ select{width:100%%;box-sizing:border-box;background:#2a2a2a;color:#e0e0e0;border
 <input type="number" name="heat_thr" step="0.1" value="%.1f">
 <label>Precipitation threshold %%</label>
 <input type="number" name="precip_thr" step="0.1" min="0" max="100" value="%.1f">
+</div>
+<label>WiFi Network (SSID)</label>
+<div class="locrow">
+<select id="ssidSelect" style="grid-column:1/3">
+<option value="">-- tap Scan to see networks --</option>
+</select>
+<button type="button" class="btn loc" onclick="scanWifi()">Scan</button>
+</div>
+<div id="scanStatus" class="locstatus"></div>
+<label>Or enter SSID manually</label>
+<input type="text" name="wifi_ssid" id="ssidInput" maxlength="63" value="%s" autocomplete="off">
+<label>WiFi Password</label>
+<input type="password" name="wifi_pass" maxlength="63" placeholder="leave blank to keep current" autocomplete="new-password">
 <br>
 <button id="saveBtn" class="btn save" type="submit">Save</button>
 </form>
+<div id="station-only" style="display:%s">
 <form method="POST" action="/poll">
 <button class="btn poll" type="submit">Poll Now</button>
 </form>
@@ -156,6 +159,7 @@ select{width:100%%;box-sizing:border-box;background:#2a2a2a;color:#e0e0e0;border
 <br>
 <button class="btn poll" type="submit" style="margin-top:.8em">Upload &amp; Install</button>
 </form>
+</div>
 <div class="footer">Firmware: %s (built %s) &nbsp;|&nbsp; Device IP: %s</div>
 <script>
 var initVals={};

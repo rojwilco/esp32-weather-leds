@@ -6,6 +6,7 @@
 #ifndef UNIT_TESTING
 #include <DNSServer.h>
 #include <Update.h>
+#include <esp_efuse.h>
 #endif
 
 #include <Preferences.h>
@@ -282,13 +283,16 @@ void handleOtaUpload();
 // for the name to be registered via DHCP.
 void applyHostname() {
   static char hostname[20];
-  String mac = WiFi.macAddress();  // "AA:BB:CC:DD:EE:FF"
-  const char* m = mac.c_str();
-  // Extract bytes DD, EE, FF at string positions 9-10, 12-13, 15-16
-  snprintf(hostname, sizeof(hostname), "weather-leds-%c%c%c%c%c%c",
-           tolower((unsigned char)m[9]),  tolower((unsigned char)m[10]),
-           tolower((unsigned char)m[12]), tolower((unsigned char)m[13]),
-           tolower((unsigned char)m[15]), tolower((unsigned char)m[16]));
+#ifndef UNIT_TESTING
+  // WiFi.macAddress() returns all-zeroes before WiFi.begin(), so read the
+  // base MAC directly from eFuse instead — available at any time.
+  uint8_t mac[6];
+  esp_efuse_mac_get_default(mac);
+  snprintf(hostname, sizeof(hostname), "weather-leds-%02x%02x%02x",
+           mac[3], mac[4], mac[5]);
+#else
+  snprintf(hostname, sizeof(hostname), "weather-leds-112233");
+#endif
   WiFi.setHostname(hostname);
 }
 

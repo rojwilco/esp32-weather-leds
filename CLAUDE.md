@@ -126,6 +126,20 @@ With this in place, clicking **Run tests** in TestMate automatically runs `make 
 - `.github/workflows/tests.yml` — runs on every push and PR; configures, builds, and runs the host tests on `ubuntu-latest`; publishes per-test results via `dorny/test-reporter`. The CMake build directory is cached keyed on `tests/CMakeLists.txt`.
 - `.github/workflows/build.yml` — compiles the sketch on every push, PR, and tag; on `v*.*.*` tags the `release` job additionally publishes a GitHub Release (see [Publishing a release](#publishing-a-release) below).
 
+## Commit conventions
+
+When a commit closes a GitHub issue, the `Closes #N` keyword **must appear on its own line** in the commit body (not embedded in the subject line). GitHub only auto-closes issues when the keyword is on a standalone line.
+
+```
+fix: short subject line describing what changed
+
+Longer explanation of why, if needed.
+
+Closes #42
+```
+
+Do **not** write `fix: short subject (closes #42)` — GitHub will not pick that up.
+
 ## Versioning
 
 Firmware version is defined in `version.h` using three separate macros:

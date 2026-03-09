@@ -114,6 +114,17 @@ TEST_F(HandleRootTest, InjectsFirmwareVersion) {
     EXPECT_NE(body.find(FIRMWARE_VERSION), std::string::npos);
 }
 
+// Description: The rendered page includes a favicon link tag so browsers
+// display a weather icon in tabs and bookmarks without any external fetch.
+TEST_F(HandleRootTest, ContainsFaviconEmoji) {
+    RecordProperty("description",
+        "The rendered page includes a favicon link tag so browsers display a "
+        "weather icon in tabs and bookmarks without any external fetch.");
+    handleRoot();
+    std::string body = g_mock_last_send_body.c_str();
+    EXPECT_NE(body.find("<link rel=\"icon\""), std::string::npos);
+}
+
 // Description: The build timestamp label appears in the rendered HTML alongside
 // the version string so the user can distinguish rebuilds of the same version number.
 // The exact timestamp value differs per translation unit so we check for the label.

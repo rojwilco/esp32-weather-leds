@@ -132,6 +132,8 @@ select{width:100%%;box-sizing:border-box;background:#2a2a2a;color:#e0e0e0;border
 <label>Precipitation threshold %%</label>
 <input type="number" name="precip_thr" step="0.1" min="0" max="100" value="%.1f">
 </div>
+<hr style="border:none;border-top:2px solid #333;margin:2.5em 0 1.5em">
+<h2 style="font-size:1em;margin:0 0 .5em;color:#888;text-transform:uppercase;letter-spacing:.08em">WiFi Settings</h2>
 <label>WiFi Network (SSID)</label>
 <div class="locrow">
 <select id="ssidSelect" style="grid-column:1/3">

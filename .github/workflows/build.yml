@@ -42,11 +42,22 @@ jobs:
       - name: Compile sketch
         run: arduino-cli compile --fqbn esp32:esp32:d1_mini32 --export-binaries .
 
+      - name: Rename binary with version
+        run: |
+          MAJOR=$(grep '#define FW_VERSION_MAJOR' version.h | awk '{print $3}')
+          MINOR=$(grep '#define FW_VERSION_MINOR' version.h | awk '{print $3}')
+          PATCH=$(grep '#define FW_VERSION_PATCH' version.h | awk '{print $3}')
+          VERSION="${MAJOR}.${MINOR}.${PATCH}-dev"
+          echo "FW_VERSION=${VERSION}" >> $GITHUB_ENV
+          cp build/esp32.esp32.d1_mini32/esp32-weather-leds.ino.bin \
+             esp32-weather-leds-v${VERSION}.bin
+
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
         with:
-          name: firmware-dev
-          path: build/esp32.esp32.d1_mini32/esp32-weather-leds.ino.bin
+          name: esp32-weather-leds-v${{ env.FW_VERSION }}
+          path: esp32-weather-leds-v${{ env.FW_VERSION }}.bin
+          compression-level: 0
 
   release:
     name: Publish release

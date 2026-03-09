@@ -6,7 +6,6 @@
 #ifndef UNIT_TESTING
 #include <DNSServer.h>
 #include <Update.h>
-#include <esp_efuse.h>
 #endif
 
 #include <Preferences.h>
@@ -285,11 +284,13 @@ void applyHostname() {
   static char hostname[20];
 #ifndef UNIT_TESTING
   // WiFi.macAddress() returns all-zeroes before WiFi.begin(), so read the
-  // base MAC directly from eFuse instead — available at any time.
-  uint8_t mac[6];
-  esp_efuse_mac_get_default(mac);
+  // base MAC via ESP.getEfuseMac() which is available at any time.
+  // getEfuseMac() packs mac[0..5] into a uint64 with mac[0] at the LSB.
+  uint64_t mac64 = ESP.getEfuseMac();
   snprintf(hostname, sizeof(hostname), "weather-leds-%02x%02x%02x",
-           mac[3], mac[4], mac[5]);
+           (uint8_t)(mac64 >> 24),   // mac[3]
+           (uint8_t)(mac64 >> 32),   // mac[4]
+           (uint8_t)(mac64 >> 40));  // mac[5]
 #else
   snprintf(hostname, sizeof(hostname), "weather-leds-112233");
 #endif

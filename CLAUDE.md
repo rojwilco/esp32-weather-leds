@@ -145,7 +145,7 @@ Firmware version is defined in `version.h` using three separate macros:
 
 `FIRMWARE_VERSION` appends a `"-dev"` suffix in all local and CI branch builds (via `FW_VERSION_SUFFIX`). The release CI job overrides this to `""` via a compiler flag. Do not modify `FW_VERSION_SUFFIX` in `version.h` itself.
 
-**When to bump:** bump the version as part of the same commit that completes a feature or fix, before pushing. Every PR that changes sketch behaviour should include a version increment.
+**When to bump:** bump the version as part of the same commit that completes a feature or fix, before pushing. Every PR that changes sketch behaviour should include a version increment. Do **not** add an additional PATCH bump for bug fixes made within the same PR that introduced the feature — the existing version increment already covers them.
 
 The version appears:
 - On the serial monitor at boot: `v1.0.0 (built Mar  7 2026 22:19:15)`

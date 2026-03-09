@@ -5,6 +5,7 @@ const char CONFIG_HTML[] PROGMEM = R"rawhtml(
 <head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Weather LEDs Config</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⛅</text></svg>">
 <style>
 body{font-family:sans-serif;max-width:500px;margin:2em auto;padding:0 1em;background:#1a1a1a;color:#e0e0e0}
 h1{font-size:1.3em}
@@ -22,7 +23,7 @@ select{width:100%%;box-sizing:border-box;background:#2a2a2a;color:#e0e0e0;border
 .locstatus{font-size:.8em;color:#aaa;margin-top:.4em;min-height:1.2em}
 </style>
 </head><body>
-<h1>Weather LEDs Config</h1>
+<h1>⛅ Weather LEDs Config</h1>
 <div style="display:%s;background:#1a2a3a;border:1px solid #2a5a8a;border-radius:4px;padding:.8em;margin-bottom:1em;color:#6aaddf">&#9432; Setup mode &mdash; connect to <strong>ESP32-Weather</strong>, then enter your WiFi credentials below and save.</div>
 <form method="POST" action="/save">
 <label>WiFi Network (SSID)</label>

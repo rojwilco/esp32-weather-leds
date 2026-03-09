@@ -322,7 +322,7 @@ void startAPMode() {
 }
 
 void handleRoot() {
-  static char page[10240];
+  static char page[11264];
   String ip = g_ap_mode ? WiFi.softAPIP().toString() : WiFi.localIP().toString();
   snprintf(page, sizeof(page), CONFIG_HTML,
            g_ap_mode ? "block" : "none",

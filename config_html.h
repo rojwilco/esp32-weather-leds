@@ -25,8 +25,8 @@ select{width:100%%;box-sizing:border-box;background:#2a2a2a;color:#e0e0e0;border
 </head><body>
 <h1>⛅ Weather LEDs Config</h1>
 <div style="display:%s;background:#1a2a3a;border:1px solid #2a5a8a;border-radius:4px;padding:.8em;margin-bottom:1em;color:#6aaddf">&#9432; Setup mode &mdash; connect to <strong>ESP32-Weather</strong>, then enter your WiFi credentials below and save.</div>
-<form method="POST" action="/save">
 <div id="main-cfg" style="display:%s">
+<form id="mainForm" method="POST" action="/save">
 <label>Brightness (0-255)</label>
 <input type="number" name="brightness" min="0" max="255" value="%d">
 <label>Poll interval (minutes)</label>
@@ -131,9 +131,16 @@ select{width:100%%;box-sizing:border-box;background:#2a2a2a;color:#e0e0e0;border
 <input type="number" name="heat_thr" step="0.1" value="%.1f">
 <label>Precipitation threshold %%</label>
 <input type="number" name="precip_thr" step="0.1" min="0" max="100" value="%.1f">
+<br>
+<button id="saveBtn" class="btn save" type="submit">Save</button>
+</form>
+<form method="POST" action="/poll">
+<button class="btn poll" type="submit" style="margin-top:.8em">Poll Now</button>
+</form>
 </div>
 <hr style="border:none;border-top:2px solid #333;margin:2.5em 0 1.5em">
 <h2 style="font-size:1em;margin:0 0 .5em;color:#888;text-transform:uppercase;letter-spacing:.08em">WiFi Settings</h2>
+<form method="POST" action="/save">
 <label>WiFi Network (SSID)</label>
 <div class="locrow">
 <select id="ssidSelect" style="grid-column:1/3">
@@ -147,12 +154,9 @@ select{width:100%%;box-sizing:border-box;background:#2a2a2a;color:#e0e0e0;border
 <label>WiFi Password</label>
 <input type="password" name="wifi_pass" maxlength="63" placeholder="leave blank to keep current" autocomplete="new-password">
 <br>
-<button id="saveBtn" class="btn save" type="submit">Save</button>
+<button class="btn save" type="submit">Save</button>
 </form>
 <div id="station-only" style="display:%s">
-<form method="POST" action="/poll">
-<button class="btn poll" type="submit">Poll Now</button>
-</form>
 <hr style="border:none;border-top:2px solid #333;margin:2.5em 0 1.5em">
 <h2 style="font-size:1em;margin:0 0 .5em;color:#888;text-transform:uppercase;letter-spacing:.08em">Firmware Update</h2>
 <form method="POST" action="/update" enctype="multipart/form-data">
@@ -166,7 +170,7 @@ select{width:100%%;box-sizing:border-box;background:#2a2a2a;color:#e0e0e0;border
 <script>
 var initVals={};
 (function(){
-  var form=document.querySelector('form[action="/save"]');
+  var form=document.getElementById('mainForm');
   Array.prototype.forEach.call(form.elements,function(el){
     if(el.name)initVals[el.name]=el.value;
   });

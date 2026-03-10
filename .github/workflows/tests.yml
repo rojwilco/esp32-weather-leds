@@ -12,6 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      actions: read
       checks: write
       pull-requests: write
 
@@ -37,8 +38,8 @@ jobs:
         run: ctest --test-dir tests/build --output-on-failure
 
       - name: Report test results
-        uses: dorny/test-reporter@v1
-        if: always()   # run even when tests fail
+        uses: dorny/test-reporter@v2
+        if: ${{ !cancelled() }}
         with:
           name: GoogleTest results
           path: tests/build/test_*.xml

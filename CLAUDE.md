@@ -24,7 +24,7 @@ Required libraries: **FastLED** 3.10.3, **ArduinoJson** v7.x (v6 is incompatible
 
 WiFi credentials are configured at runtime — there is no `secrets.h`.
 On first boot (or whenever no credentials are saved in NVS), the device
-starts in AP mode: it broadcasts an open network named **ESP32-Weather**.
+starts in AP mode: it broadcasts an open network named **ESP32-WeatherLED**.
 Connect to that network, then visit `http://192.168.4.1/` to enter your
 SSID (use the Scan button) and password. After saving, the device reboots
 into normal station mode. Credentials persist in NVS across reboots.
@@ -35,10 +35,10 @@ Latitude/longitude are also set via the web UI.
 - `setup()` — loads config, initializes FastLED, connects WiFi (dim-orange on failure), starts `WebServer`, prints IP, clears LEDs
 - `loop()` — calls `server.handleClient()` every iteration; polls immediately on boot, then every `cfg_poll_min` minutes; `g_forceRepoll` flag triggers an out-of-schedule poll
 - `loadConfig()` / `saveConfig()` — reads/writes all runtime settings to NVS via `Preferences` (namespace `"wxleds"`)
-- `handleRoot()` — serves the HTML config page (`config_html.h`) with current config values injected via `snprintf`
-- `handleSave()` — processes POST from the config form, validates inputs, persists settings via `saveConfig()`, applies `FastLED.setBrightness()` immediately; sets `g_forceRepoll` if location changed
+- `handleRoot()` — serves the HTML config page (`config_html.h`) with current config values injected via `snprintf`; page adapts based on device mode: AP mode shows only WiFi fields, station mode shows full config
+- `handleSave()` — processes POST from the config form, validates inputs, persists settings via `saveConfig()`, applies `FastLED.setBrightness()` immediately; sets `g_forceRepoll` if location or `cfg_num_leds` changed; `cfg_num_leds` is clamped to 1–16
 - `handlePollNow()` — sets `g_forceRepoll = true`, triggering a poll on the next `loop()` iteration
-- `pollWeather()` — fetches all 6 days in one request, sets all LEDs, calls `FastLED.show()` once
+- `pollWeather()` — fetches `cfg_num_leds` days in one request, sets all LEDs, calls `FastLED.show()` once
 - `fetchForecast()` — HTTPS GET to Open-Meteo using `cfg_latitude`/`cfg_longitude`, filters JSON for max/min/precip arrays, computes daily averages
 - `tempToColor()` — maps °F to CHSV using runtime bounds: `cfg_cold_temp`→hue 160 (blue, default 20°F), `cfg_hot_temp`→hue 0 (red, default 90°F)
 
@@ -201,5 +201,5 @@ No manual upload is needed — pushing the tag is the complete release action.
 
 - **ArduinoJson v7 only.** Filter arrays with `filter["daily"]["temperature_2m_max"][0] = true` (the `[0]` is required to retain the whole array). Access via `.as<JsonArray>()`.
 - **Single `FastLED.show()` per poll cycle** — per-LED calls cause flicker.
-- **`forecast_days` equals `NUM_LEDS`** — changing LED count automatically adjusts the API request.
+- **`forecast_days` equals `cfg_num_leds`** — the runtime config value (not a compile-time constant) controls both the LED count and the number of forecast days requested from the API.
 - **`handleRoot()` page buffer is `static`** — the buffer must remain `static char page[...]` (currently 10 KB) to avoid a stack overflow in the WebServer callback. The ESP32 loop task stack is ~8 KB total; a plain local allocation of that size crashes the device. The `static` keyword is what matters; the buffer size may be grown as needed.

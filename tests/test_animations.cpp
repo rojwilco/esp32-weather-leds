@@ -7,8 +7,9 @@ class AnimationsTest : public ::testing::Test {
 protected:
     void SetUp() override {
         g_mock_millis = 0;
+        cfg_num_leds  = DEFAULT_NUM_LEDS;
         FastLED.resetShowCount();
-        for (int i = 0; i < NUM_LEDS; i++) {
+        for (int i = 0; i < MAX_LEDS; i++) {
             leds[i]               = CRGB(0, 0, 0);
             ledStates[i].alert    = ALERT_NONE;
             ledStates[i].blendAmt = 0;

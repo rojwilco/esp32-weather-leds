@@ -5,6 +5,7 @@
 class HandleRootTest : public ::testing::Test {
 protected:
     void SetUp() override {
+        cfg_num_leds   = DEFAULT_NUM_LEDS;
         cfg_brightness = DEFAULT_BRIGHTNESS;
         cfg_poll_min   = DEFAULT_POLL_MIN;
         cfg_cold_temp  = DEFAULT_COLD_TEMP_F;
@@ -204,4 +205,17 @@ TEST_F(HandleRootTest, APModeHidesStationOnlySection) {
     ASSERT_NE(stylePos, std::string::npos);
     EXPECT_NE(body.find("display:none", stylePos), std::string::npos)
         << "station-only section should be hidden in AP mode";
+}
+
+// Description: handleRoot() injects cfg_num_leds into the num_leds input
+// field value so the form shows the current configured LED count.
+TEST_F(HandleRootTest, NumLedsInjectedIntoPage) {
+    RecordProperty("description",
+        "handleRoot() injects cfg_num_leds into the num_leds input field value "
+        "so the form shows the current configured LED count.");
+    cfg_num_leds = 9;
+    handleRoot();
+    std::string body = g_mock_last_send_body.c_str();
+    EXPECT_NE(body.find("name=\"num_leds\""), std::string::npos) << "num_leds field missing";
+    EXPECT_NE(body.find("value=\"9\""),       std::string::npos) << "cfg_num_leds not injected";
 }

@@ -31,6 +31,8 @@ select{width:100%%;box-sizing:border-box;background:#2a2a2a;color:#e0e0e0;border
 <input type="number" name="brightness" min="0" max="255" value="%d">
 <label>Poll interval (minutes)</label>
 <input type="number" name="poll_min" min="1" max="1440" value="%d">
+<label>LEDs (1&ndash;16) &mdash; LED 1&nbsp;=&nbsp;today, LED 2&nbsp;=&nbsp;tomorrow&nbsp;&hellip;</label>
+<input type="number" name="num_leds" min="1" max="16" value="%d">
 <label>Cold temperature &deg;F (blue end)</label>
 <input type="number" name="cold_temp" step="0.1" value="%.1f">
 <label>Hot temperature &deg;F (red end)</label>

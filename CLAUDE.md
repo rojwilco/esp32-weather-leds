@@ -140,6 +140,23 @@ Closes #42
 
 Do **not** write `fix: short subject (closes #42)` — GitHub will not pick that up.
 
+### Verification checklist in commit body
+
+When a commit implements a testable feature or fix, include a **Verification** section in the commit body as a markdown checkbox list. GitHub renders these as interactive checkboxes in the PR description, giving reviewers a clear, checkable test plan.
+
+```
+feat: add configurable LED/day count via web UI
+
+Longer explanation of why, if needed.
+
+Verification:
+- [ ] `cd tests && make` passes all tests
+- [ ] Setting num_leds=4 → API requests forecast_days=4; LEDs 4–15 are black
+- [ ] Values outside 1–16 are clamped; unchanged value does not trigger repoll
+
+Closes #11
+```
+
 ## Versioning
 
 Firmware version is defined in `version.h` using three separate macros:

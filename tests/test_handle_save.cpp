@@ -5,6 +5,7 @@
 class HandleSaveTest : public ::testing::Test {
 protected:
     void SetUp() override {
+        cfg_num_leds   = DEFAULT_NUM_LEDS;
         cfg_brightness = DEFAULT_BRIGHTNESS;
         cfg_poll_min   = DEFAULT_POLL_MIN;
         cfg_cold_temp  = DEFAULT_COLD_TEMP_F;
@@ -189,4 +190,49 @@ TEST_F(HandleSaveTest, WifiCredentialsPersistedToNvs) {
     handleSave();
     EXPECT_EQ(g_mock_prefs_store["wifi_ssid"], "HomeWifi");
     EXPECT_EQ(g_mock_prefs_store["wifi_pass"],  "pass123");
+}
+
+// Description: Submitting a num_leds value within range (4) updates cfg_num_leds
+// and sets g_forceRepoll so the API is immediately called with the new day count.
+TEST_F(HandleSaveTest, NumLedsInRangeUpdatesAndRepolls) {
+    RecordProperty("description",
+        "Submitting a num_leds value within range (4) updates cfg_num_leds "
+        "and sets g_forceRepoll so the API is immediately called with the new day count.");
+    g_mock_server_args["num_leds"] = "4";
+    handleSave();
+    EXPECT_EQ(cfg_num_leds, 4);
+    EXPECT_TRUE(g_forceRepoll);
+}
+
+// Description: A num_leds value above MAX_LEDS is clamped to MAX_LEDS (16)
+// before being applied, preventing out-of-bounds LED array access.
+TEST_F(HandleSaveTest, NumLedsClampedAtMax) {
+    RecordProperty("description",
+        "A num_leds value above MAX_LEDS is clamped to MAX_LEDS (16) before "
+        "being applied, preventing out-of-bounds LED array access.");
+    g_mock_server_args["num_leds"] = "99";
+    handleSave();
+    EXPECT_EQ(cfg_num_leds, MAX_LEDS);
+}
+
+// Description: Submitting the same num_leds as currently configured does not
+// set g_forceRepoll, avoiding a redundant weather fetch.
+TEST_F(HandleSaveTest, UnchangedNumLedsNoRepoll) {
+    RecordProperty("description",
+        "Submitting the same num_leds as currently configured does not set "
+        "g_forceRepoll, avoiding a redundant weather fetch.");
+    g_mock_server_args["num_leds"] = "6";   // same as DEFAULT_NUM_LEDS
+    handleSave();
+    EXPECT_FALSE(g_forceRepoll);
+}
+
+// Description: The num_leds value is written to NVS under the "num_leds" key
+// so the configured LED count persists across device reboots.
+TEST_F(HandleSaveTest, NumLedsPersistedToNvs) {
+    RecordProperty("description",
+        "The num_leds value is written to NVS under the \"num_leds\" key so "
+        "the configured LED count persists across device reboots.");
+    g_mock_server_args["num_leds"] = "8";
+    handleSave();
+    EXPECT_EQ(g_mock_prefs_store["num_leds"], "8");
 }

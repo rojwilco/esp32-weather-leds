@@ -168,9 +168,10 @@ Firmware version is defined in `version.h` using three separate macros:
 ```
 
 **When to bump** (semver rules):
-- **PATCH** — bug fixes, test additions, doc changes, no behaviour change
+- **PATCH** — bug fixes or test additions that change compiled firmware behaviour
 - **MINOR** — new features that are backwards-compatible (new web UI field, new config option, new LED behaviour)
 - **MAJOR** — breaking changes (NVS key renames that wipe saved config, wire-protocol changes, pin reassignments)
+- **No bump** — README, CLAUDE.md, or other doc-only changes that do not affect the compiled binary
 
 **How to bump:** edit only the relevant line(s) in `version.h`. The string (`FIRMWARE_VERSION`), packed integer (`FW_VERSION_INT`), and build timestamp (`FIRMWARE_BUILD_TIMESTAMP`) all derive from those three defines automatically — no other files need touching.
 

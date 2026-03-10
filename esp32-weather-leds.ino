@@ -14,10 +14,11 @@
 #include "version.h"
 
 #define LED_PIN           23
-#define NUM_LEDS          6
+#define MAX_LEDS          16   // Open-Meteo API maximum for forecast_days
 #define AP_SSID           "ESP32-WeatherLED"
 
 // Compile-time defaults — overridden at runtime via web UI + NVS
+#define DEFAULT_NUM_LEDS        6
 #define DEFAULT_BRIGHTNESS      50
 #define DEFAULT_POLL_MIN        30        // minutes
 #define DEFAULT_COLD_TEMP_F     20.0f
@@ -31,6 +32,7 @@
 #define DEFAULT_WIFI_PASS       ""
 
 // Runtime config (loaded from NVS, used everywhere)
+uint8_t  cfg_num_leds   = DEFAULT_NUM_LEDS;
 uint8_t  cfg_brightness = DEFAULT_BRIGHTNESS;
 uint16_t cfg_poll_min   = DEFAULT_POLL_MIN;
 float    cfg_cold_temp  = DEFAULT_COLD_TEMP_F;
@@ -83,11 +85,12 @@ struct LEDState {
   unsigned long holdUntil; // millis() when hold-on-base phase ends
 };
 
-CRGB leds[NUM_LEDS];
-LEDState ledStates[NUM_LEDS];
+CRGB leds[MAX_LEDS];
+LEDState ledStates[MAX_LEDS];
 
 void loadConfig() {
   prefs.begin("wxleds", /*readOnly=*/true);
+  cfg_num_leds   = prefs.getUChar("num_leds",    DEFAULT_NUM_LEDS);
   cfg_brightness = prefs.getUChar("brightness",  DEFAULT_BRIGHTNESS);
   cfg_poll_min   = prefs.getUShort("poll_min",   DEFAULT_POLL_MIN);
   cfg_cold_temp  = prefs.getFloat("cold_temp",   DEFAULT_COLD_TEMP_F);
@@ -100,13 +103,14 @@ void loadConfig() {
   prefs.getString("wifi_ssid", DEFAULT_WIFI_SSID).toCharArray(cfg_wifi_ssid, sizeof(cfg_wifi_ssid));
   prefs.getString("wifi_pass", DEFAULT_WIFI_PASS).toCharArray(cfg_wifi_pass, sizeof(cfg_wifi_pass));
   prefs.end();
-  Serial.printf("Config: brt=%d poll=%dmin cold=%.1f hot=%.1f lat=%s lon=%s ssid=%s\n",
-                cfg_brightness, cfg_poll_min, cfg_cold_temp, cfg_hot_temp,
+  Serial.printf("Config: leds=%d brt=%d poll=%dmin cold=%.1f hot=%.1f lat=%s lon=%s ssid=%s\n",
+                cfg_num_leds, cfg_brightness, cfg_poll_min, cfg_cold_temp, cfg_hot_temp,
                 cfg_latitude, cfg_longitude, cfg_wifi_ssid);
 }
 
 void saveConfig() {
   prefs.begin("wxleds", /*readOnly=*/false);
+  prefs.putUChar("num_leds",    cfg_num_leds);
   prefs.putUChar("brightness",  cfg_brightness);
   prefs.putUShort("poll_min",   cfg_poll_min);
   prefs.putFloat("cold_temp",   cfg_cold_temp);
@@ -136,7 +140,7 @@ bool fetchForecast(DayForecast* outDays) {
     "&temperature_unit=fahrenheit"
     "&timezone=auto"
     "&forecast_days=%d",
-    cfg_latitude, cfg_longitude, NUM_LEDS);
+    cfg_latitude, cfg_longitude, cfg_num_leds);
 
   WiFiClientSecure client;
   client.setInsecure();
@@ -181,7 +185,7 @@ bool fetchForecast(DayForecast* outDays) {
     return false;
   }
 
-  for (int i = 0; i < NUM_LEDS; i++) {
+  for (int i = 0; i < cfg_num_leds; i++) {
     outDays[i].tempMax    = maxArr[i].as<float>();
     outDays[i].tempMin    = minArr[i].as<float>();
     outDays[i].tempAvg    = (outDays[i].tempMax + outDays[i].tempMin) / 2.0f;
@@ -195,14 +199,14 @@ bool fetchForecast(DayForecast* outDays) {
 }
 
 void pollWeather() {
-  DayForecast forecast[NUM_LEDS];
+  DayForecast forecast[MAX_LEDS];
 
   Serial.println("pollWeather: fetching forecast...");
   bool ok = fetchForecast(forecast);
 
   if (ok) {
     unsigned long now = millis();
-    for (int i = 0; i < NUM_LEDS; i++) {
+    for (int i = 0; i < cfg_num_leds; i++) {
       CRGB base = tempToColor(forecast[i].tempAvg);
 
       AlertType alert;
@@ -231,10 +235,18 @@ void pollWeather() {
 
       leds[i] = base;
     }
+    for (int i = cfg_num_leds; i < MAX_LEDS; i++) {
+      leds[i] = CRGB::Black;
+      ledStates[i].alert = ALERT_NONE;
+    }
   } else {
     Serial.println("pollWeather: fetch failed, showing dim white");
-    fill_solid(leds, NUM_LEDS, CRGB(10, 10, 10));
-    for (int i = 0; i < NUM_LEDS; i++) {
+    fill_solid(leds, cfg_num_leds, CRGB(10, 10, 10));
+    for (int i = 0; i < cfg_num_leds; i++) {
+      ledStates[i].alert = ALERT_NONE;
+    }
+    for (int i = cfg_num_leds; i < MAX_LEDS; i++) {
+      leds[i] = CRGB::Black;
       ledStates[i].alert = ALERT_NONE;
     }
   }
@@ -246,7 +258,7 @@ void tickAnimations() {
   bool changed = false;
   unsigned long now = millis();
 
-  for (int i = 0; i < NUM_LEDS; i++) {
+  for (int i = 0; i < MAX_LEDS; i++) {
     if (ledStates[i].alert == ALERT_NONE) continue;
     if (now < ledStates[i].holdUntil) continue;          // holding on base color
     if (now - ledStates[i].lastTick < FADE_INTERVAL_MS) continue;
@@ -317,7 +329,7 @@ void startAPMode() {
   server.begin();
 
   Serial.printf("AP mode: connect to \"%s\", then open http://192.168.4.1/\n", AP_SSID);
-  fill_solid(leds, NUM_LEDS, CRGB(0, 0, 40));
+  fill_solid(leds, cfg_num_leds, CRGB(0, 0, 40));
   FastLED.show();
 }
 
@@ -328,7 +340,7 @@ void handleRoot() {
   snprintf(page, sizeof(page), CONFIG_HTML,
            g_ap_mode ? "block" : "none",  // AP setup banner
            stationDisplay,                 // main-cfg section (hidden in AP mode)
-           cfg_brightness, cfg_poll_min,
+           cfg_brightness, cfg_poll_min, cfg_num_leds,
            cfg_cold_temp, cfg_hot_temp,
            cfg_latitude, cfg_longitude,
            cfg_freeze_thr, cfg_heat_thr, cfg_precip_thr,
@@ -344,6 +356,13 @@ void handleSave() {
     cfg_brightness = (uint8_t)constrain(server.arg("brightness").toInt(), 0, 255);
   if (server.hasArg("poll_min"))
     cfg_poll_min = (uint16_t)constrain(server.arg("poll_min").toInt(), 1, 1440);
+  if (server.hasArg("num_leds")) {
+    uint8_t newVal = (uint8_t)constrain(server.arg("num_leds").toInt(), 1, MAX_LEDS);
+    if (newVal != cfg_num_leds) {
+      cfg_num_leds = newVal;
+      g_forceRepoll = true;
+    }
+  }
   if (server.hasArg("cold_temp"))
     cfg_cold_temp = server.arg("cold_temp").toFloat();
   if (server.hasArg("hot_temp"))
@@ -479,11 +498,11 @@ void setup() {
 
   loadConfig();
 
-  FastLED.addLeds<WS2812B, LED_PIN, GRB>(leds, NUM_LEDS);
+  FastLED.addLeds<WS2812B, LED_PIN, GRB>(leds, MAX_LEDS);
   FastLED.setBrightness(cfg_brightness);
 
-  // Dim white boot indicator
-  fill_solid(leds, NUM_LEDS, CRGB(20, 20, 20));
+  // Dim white boot indicator on configured LEDs
+  fill_solid(leds, cfg_num_leds, CRGB(20, 20, 20));
   FastLED.show();
 
   if (strlen(cfg_wifi_ssid) == 0) {
@@ -520,7 +539,7 @@ void setup() {
   Serial.printf("Web UI: http://%s/\n", WiFi.localIP().toString().c_str());
 
   // Clear LEDs after successful connect
-  fill_solid(leds, NUM_LEDS, CRGB(0, 0, 0));
+  fill_solid(leds, MAX_LEDS, CRGB(0, 0, 0));
   FastLED.show();
 }
 
@@ -556,7 +575,7 @@ void loop() {
         Serial.printf("Connected! IP: %s\n", WiFi.localIP().toString().c_str());
         server.on("/poll",   HTTP_POST, handlePollNow);
         server.on("/update", HTTP_POST, handleOtaUpdate, handleOtaUpload);
-        fill_solid(leds, NUM_LEDS, CRGB(0, 0, 0));
+        fill_solid(leds, MAX_LEDS, CRGB(0, 0, 0));
         FastLED.show();
         firstRun = true;
       } else {

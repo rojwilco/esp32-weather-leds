@@ -19,6 +19,7 @@ protected:
         g_mock_http_code     = HTTP_CODE_OK;
         g_mock_http_payload  = String(VALID_PAYLOAD);
         g_mock_http_begin_ok = true;
+        cfg_num_leds         = DEFAULT_NUM_LEDS;
         strncpy(cfg_latitude,  DEFAULT_LATITUDE,  sizeof(cfg_latitude));
         strncpy(cfg_longitude, DEFAULT_LONGITUDE, sizeof(cfg_longitude));
     }
@@ -32,7 +33,7 @@ TEST_F(FetchForecastTest, ValidResponsePopulatesAllDays) {
     RecordProperty("description",
         "A well-formed Open-Meteo JSON response fills all 6 forecast days "
         "with the correct max, min, average, and precipitation values.");
-    DayForecast days[NUM_LEDS];
+    DayForecast days[DEFAULT_NUM_LEDS];
     ASSERT_TRUE(fetchForecast(days));
 
     EXPECT_FLOAT_EQ(days[0].tempMax,    85.0f);
@@ -52,9 +53,9 @@ TEST_F(FetchForecastTest, TempAvgIsArithmeticMean) {
     RecordProperty("description",
         "Each day's tempAvg is exactly (tempMax + tempMin) / 2, "
         "with no rounding or offset applied.");
-    DayForecast days[NUM_LEDS];
+    DayForecast days[DEFAULT_NUM_LEDS];
     ASSERT_TRUE(fetchForecast(days));
-    for (int i = 0; i < NUM_LEDS; i++) {
+    for (int i = 0; i < cfg_num_leds; i++) {
         float expected = (days[i].tempMax + days[i].tempMin) / 2.0f;
         EXPECT_FLOAT_EQ(days[i].tempAvg, expected) << "Day " << i;
     }
@@ -67,7 +68,7 @@ TEST_F(FetchForecastTest, HttpErrorReturnsFalse) {
         "An HTTP 500 response causes fetchForecast() to return false "
         "without populating any day data.");
     g_mock_http_code = 500;
-    DayForecast days[NUM_LEDS];
+    DayForecast days[DEFAULT_NUM_LEDS];
     EXPECT_FALSE(fetchForecast(days));
 }
 
@@ -78,7 +79,7 @@ TEST_F(FetchForecastTest, BeginFailureReturnsFalse) {
         "When HTTPClient.begin() fails (network unreachable), "
         "fetchForecast() returns false immediately without attempting a request.");
     g_mock_http_begin_ok = false;
-    DayForecast days[NUM_LEDS];
+    DayForecast days[DEFAULT_NUM_LEDS];
     EXPECT_FALSE(fetchForecast(days));
 }
 
@@ -89,7 +90,7 @@ TEST_F(FetchForecastTest, MalformedJsonReturnsFalse) {
         "A response body that is not valid JSON causes fetchForecast() "
         "to return false rather than producing garbage data.");
     g_mock_http_payload = String("{not valid json{{");
-    DayForecast days[NUM_LEDS];
+    DayForecast days[DEFAULT_NUM_LEDS];
     EXPECT_FALSE(fetchForecast(days));
 }
 
@@ -101,7 +102,7 @@ TEST_F(FetchForecastTest, MissingTemperatureArrayReturnsFalse) {
         "fetchForecast() to return false; temperature data is required.");
     g_mock_http_payload = String(
         R"({"daily":{"precipitation_probability_max":[10,20,30,40,50,60]}})");
-    DayForecast days[NUM_LEDS];
+    DayForecast days[DEFAULT_NUM_LEDS];
     EXPECT_FALSE(fetchForecast(days));
 }
 
@@ -117,9 +118,9 @@ TEST_F(FetchForecastTest, MissingPrecipArrayDefaultsToZero) {
         "temperature_2m_min": [60,61,62,63,64,65]
       }
     })");
-    DayForecast days[NUM_LEDS];
+    DayForecast days[DEFAULT_NUM_LEDS];
     ASSERT_TRUE(fetchForecast(days));
-    for (int i = 0; i < NUM_LEDS; i++)
+    for (int i = 0; i < cfg_num_leds; i++)
         EXPECT_FLOAT_EQ(days[i].precipProb, 0.0f) << "Day " << i;
 }
 
@@ -133,6 +134,6 @@ TEST_F(FetchForecastTest, DifferentLocationStillParses) {
     // (the mock always returns VALID_PAYLOAD regardless of the URL)
     strncpy(cfg_latitude,  "51.5074", sizeof(cfg_latitude));
     strncpy(cfg_longitude, "-0.1278", sizeof(cfg_longitude));
-    DayForecast days[NUM_LEDS];
+    DayForecast days[DEFAULT_NUM_LEDS];
     EXPECT_TRUE(fetchForecast(days));
 }

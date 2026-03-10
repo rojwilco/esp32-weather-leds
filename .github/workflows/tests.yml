@@ -12,16 +12,17 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      actions: read
       checks: write
       pull-requests: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       # Cache the CMake build directory so FetchContent downloads
       # (GoogleTest, ArduinoJson) are reused across runs.
       - name: Cache CMake build
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: tests/build
           key: cmake-${{ runner.os }}-${{ hashFiles('tests/CMakeLists.txt') }}
@@ -37,8 +38,8 @@ jobs:
         run: ctest --test-dir tests/build --output-on-failure
 
       - name: Report test results
-        uses: dorny/test-reporter@v1
-        if: always()   # run even when tests fail
+        uses: dorny/test-reporter@v2
+        if: ${{ !cancelled() }}
         with:
           name: GoogleTest results
           path: tests/build/test_*.xml

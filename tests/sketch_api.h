@@ -20,8 +20,9 @@
 
 // ── Sketch compile-time constants ────────────────────────────────────────────
 #define LED_PIN  23
-#define NUM_LEDS  6
+#define MAX_LEDS  16   // Open-Meteo API maximum for forecast_days
 
+#define DEFAULT_NUM_LEDS        6
 #define DEFAULT_BRIGHTNESS      50
 #define DEFAULT_POLL_MIN        30
 #define DEFAULT_COLD_TEMP_F     20.0f
@@ -63,6 +64,7 @@ struct LEDState {
 };
 
 // ── Sketch globals (defined in sketch_wrapper.cpp via sketch_lib) ─────────────
+extern uint8_t  cfg_num_leds;
 extern uint8_t  cfg_brightness;
 extern uint16_t cfg_poll_min;
 extern float    cfg_cold_temp;
@@ -74,8 +76,8 @@ extern float    cfg_heat_thr;
 extern float    cfg_precip_thr;
 extern char     cfg_wifi_ssid[64];
 extern char     cfg_wifi_pass[64];
-extern CRGB     leds[NUM_LEDS];
-extern LEDState ledStates[NUM_LEDS];
+extern CRGB     leds[MAX_LEDS];
+extern LEDState ledStates[MAX_LEDS];
 extern bool     g_forceRepoll;
 extern bool     g_ap_mode;
 extern bool     g_pendingConnect;

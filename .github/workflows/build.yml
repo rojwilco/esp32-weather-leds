@@ -15,13 +15,13 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install arduino-cli
         uses: arduino/setup-arduino-cli@v2
 
       - name: Cache Arduino data
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.arduino15
           key: arduino-${{ runner.os }}-esp32-3.3.7-fastled-3.10.3-arduinojson-7
@@ -54,7 +54,7 @@ jobs:
              esp32-weather-leds-v${VERSION}.bin
 
       - name: Upload binary artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: esp32-weather-leds-v${{ env.FW_VERSION }}
           path: esp32-weather-leds-v${{ env.FW_VERSION }}.bin
@@ -68,13 +68,13 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install arduino-cli
         uses: arduino/setup-arduino-cli@v2
 
       - name: Cache Arduino data
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.arduino15
           key: arduino-${{ runner.os }}-esp32-3.3.7-fastled-3.10.3-arduinojson-7

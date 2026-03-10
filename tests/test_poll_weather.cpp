@@ -4,7 +4,7 @@
 // ── Helper ────────────────────────────────────────────────────────────────────
 
 static String makePayload(
-    float mx[NUM_LEDS], float mn[NUM_LEDS], float pr[NUM_LEDS])
+    float mx[DEFAULT_NUM_LEDS], float mn[DEFAULT_NUM_LEDS], float pr[DEFAULT_NUM_LEDS])
 {
     char buf[512];
     snprintf(buf, sizeof(buf),
@@ -29,6 +29,7 @@ protected:
         g_mock_millis        = 0;
         g_mock_wifi_status   = WL_CONNECTED;
         FastLED.resetShowCount();
+        cfg_num_leds   = DEFAULT_NUM_LEDS;
         cfg_freeze_thr = DEFAULT_FREEZE_THR_F;
         cfg_heat_thr   = DEFAULT_HEAT_THR_F;
         cfg_precip_thr = DEFAULT_PRECIP_THR_PCT;
@@ -53,7 +54,7 @@ TEST_F(PollWeatherTest, NoAlertForNormalConditions) {
         "75F max, 55F min) produces ALERT_NONE on every LED.");
     setAllDays(75.0f, 55.0f, 20.0f);
     pollWeather();
-    for (int i = 0; i < NUM_LEDS; i++)
+    for (int i = 0; i < cfg_num_leds; i++)
         EXPECT_EQ(ledStates[i].alert, ALERT_NONE) << "LED " << i;
 }
 
@@ -65,7 +66,7 @@ TEST_F(PollWeatherTest, RainAlertAtThreshold) {
         "the threshold boundary is inclusive.");
     setAllDays(75.0f, 55.0f, 50.0f);   // precip == cfg_precip_thr
     pollWeather();
-    for (int i = 0; i < NUM_LEDS; i++)
+    for (int i = 0; i < cfg_num_leds; i++)
         EXPECT_EQ(ledStates[i].alert, ALERT_RAIN) << "LED " << i;
 }
 
@@ -77,7 +78,7 @@ TEST_F(PollWeatherTest, RainAlertAboveThreshold) {
         "on all LEDs.");
     setAllDays(75.0f, 55.0f, 80.0f);
     pollWeather();
-    for (int i = 0; i < NUM_LEDS; i++)
+    for (int i = 0; i < cfg_num_leds; i++)
         EXPECT_EQ(ledStates[i].alert, ALERT_RAIN) << "LED " << i;
 }
 
@@ -89,7 +90,7 @@ TEST_F(PollWeatherTest, FreezeAlertBelowThreshold) {
         "even when precipitation is low.");
     setAllDays(50.0f, 28.0f, 10.0f);
     pollWeather();
-    for (int i = 0; i < NUM_LEDS; i++)
+    for (int i = 0; i < cfg_num_leds; i++)
         EXPECT_EQ(ledStates[i].alert, ALERT_FREEZE) << "LED " << i;
 }
 
@@ -101,7 +102,7 @@ TEST_F(PollWeatherTest, FreezeAlertAtThreshold) {
         "the freeze threshold boundary is inclusive.");
     setAllDays(50.0f, 32.0f, 10.0f);   // tempMin == cfg_freeze_thr
     pollWeather();
-    for (int i = 0; i < NUM_LEDS; i++)
+    for (int i = 0; i < cfg_num_leds; i++)
         EXPECT_EQ(ledStates[i].alert, ALERT_FREEZE) << "LED " << i;
 }
 
@@ -113,7 +114,7 @@ TEST_F(PollWeatherTest, HeatAlertAtThreshold) {
         "ALERT_HEAT; the heat threshold boundary is inclusive.");
     setAllDays(95.0f, 70.0f, 10.0f);   // tempMax == cfg_heat_thr
     pollWeather();
-    for (int i = 0; i < NUM_LEDS; i++)
+    for (int i = 0; i < cfg_num_leds; i++)
         EXPECT_EQ(ledStates[i].alert, ALERT_HEAT) << "LED " << i;
 }
 
@@ -125,7 +126,7 @@ TEST_F(PollWeatherTest, HeatAlertAboveThreshold) {
         "ALERT_HEAT on all LEDs.");
     setAllDays(100.0f, 75.0f, 10.0f);
     pollWeather();
-    for (int i = 0; i < NUM_LEDS; i++)
+    for (int i = 0; i < cfg_num_leds; i++)
         EXPECT_EQ(ledStates[i].alert, ALERT_HEAT) << "LED " << i;
 }
 
@@ -137,7 +138,7 @@ TEST_F(PollWeatherTest, RainBeatsFreezeAndHeat) {
         "ALERT_RAIN takes the highest priority.");
     setAllDays(100.0f, 28.0f, 70.0f);  // all three conditions simultaneously
     pollWeather();
-    for (int i = 0; i < NUM_LEDS; i++)
+    for (int i = 0; i < cfg_num_leds; i++)
         EXPECT_EQ(ledStates[i].alert, ALERT_RAIN) << "LED " << i;
 }
 
@@ -149,7 +150,7 @@ TEST_F(PollWeatherTest, FreezeBeatsHeat) {
         "ALERT_FREEZE takes priority over ALERT_HEAT.");
     setAllDays(100.0f, 28.0f, 10.0f);  // high max AND low min, no rain
     pollWeather();
-    for (int i = 0; i < NUM_LEDS; i++)
+    for (int i = 0; i < cfg_num_leds; i++)
         EXPECT_EQ(ledStates[i].alert, ALERT_FREEZE) << "LED " << i;
 }
 
@@ -177,7 +178,7 @@ TEST_F(PollWeatherTest, FailedFetchShowsDimWhite) {
     FastLED.resetShowCount();
     pollWeather();
     EXPECT_EQ(FastLED.showCount, 1);
-    for (int i = 0; i < NUM_LEDS; i++) {
+    for (int i = 0; i < cfg_num_leds; i++) {
         EXPECT_EQ(leds[i], CRGB(10, 10, 10)) << "LED " << i;
         EXPECT_EQ(ledStates[i].alert, ALERT_NONE) << "LED " << i;
     }
@@ -204,7 +205,7 @@ TEST_F(PollWeatherTest, AnimationInitialisedAtPollTime) {
     setAllDays(100.0f, 28.0f, 70.0f);   // rain alert
     g_mock_millis = 5000;
     pollWeather();
-    for (int i = 0; i < NUM_LEDS; i++) {
+    for (int i = 0; i < cfg_num_leds; i++) {
         EXPECT_EQ(ledStates[i].blendAmt, 0)                           << "LED " << i;
         EXPECT_EQ(ledStates[i].fadeDir,  1)                           << "LED " << i;
         EXPECT_EQ(ledStates[i].holdUntil, 5000UL + HOLD_MS)           << "LED " << i;

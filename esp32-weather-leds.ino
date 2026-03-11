@@ -367,7 +367,8 @@ void handleRoot() {
            cfg_wifi_ssid,                  // SSID field (now at bottom of form)
            stationDisplay,                 // station-only section (poll + OTA)
            FIRMWARE_VERSION, FIRMWARE_BUILD_TIMESTAMP,
-           ip.c_str());
+           ip.c_str(),
+           DEFAULT_HOLD_SEC, DEFAULT_ALERT_HOLD_SEC, DEFAULT_FADE_SEC);  // nerdy defaults for reset JS
   server.send(200, "text/html", page);
 }
 

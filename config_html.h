@@ -142,6 +142,7 @@ select{width:100%%;box-sizing:border-box;background:#2a2a2a;color:#e0e0e0;border
 <input type="number" name="alert_hold_sec" step="0.1" min="0" max="10" value="%.1f">
 <label>Fade (s) &mdash; rising and falling edge duration of each flash</label>
 <input type="number" name="fade_sec" step="0.1" min="0.1" max="10" value="%.1f">
+<div style="text-align:right;margin-top:.5em"><button type="button" onclick="resetNerdyDefaults()" style="background:#444;color:#aaa;font-size:.8em;padding:.3em .8em;border:none;border-radius:4px;cursor:pointer">Revert to defaults</button></div>
 </details>
 <br>
 <button id="saveBtn" class="btn save" type="submit">Save</button>
@@ -193,6 +194,12 @@ var initVals={};
     document.getElementById('saveBtn').classList.toggle('dirty',dirty);
   });
 })();
+function resetNerdyDefaults(){
+  document.querySelector('[name=hold_sec]').value='%.1f';
+  document.querySelector('[name=alert_hold_sec]').value='%.1f';
+  document.querySelector('[name=fade_sec]').value='%.1f';
+  document.getElementById('mainForm').dispatchEvent(new Event('input',{bubbles:true}));
+}
 function setLocStatus(m){document.getElementById('locStatus').textContent=m;}
 function scanWifi(){
   var st=document.getElementById('scanStatus');

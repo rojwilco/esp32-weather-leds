@@ -133,10 +133,16 @@ select{width:100%%;box-sizing:border-box;background:#2a2a2a;color:#e0e0e0;border
 <input type="number" name="heat_thr" step="0.1" value="%.1f">
 <label>Precipitation threshold %%</label>
 <input type="number" name="precip_thr" step="0.1" min="0" max="100" value="%.1f">
-<label>Hold duration (s) &mdash; pause on temperature color between flashes</label>
+<hr style="border:none;border-top:2px solid #333;margin:2.5em 0 1.5em">
+<details>
+<summary style="cursor:pointer;font-size:1em;color:#888;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.5em">Nerdy Settings</summary>
+<label>Hold (s) &mdash; pause on temperature color between flash cycles</label>
 <input type="number" name="hold_sec" step="0.1" min="0.1" max="60" value="%.1f">
-<label>Fade duration (s) &mdash; length of each alert flash cycle</label>
+<label>Alert hold (s) &mdash; pause at peak alert color before fading back</label>
+<input type="number" name="alert_hold_sec" step="0.1" min="0" max="10" value="%.1f">
+<label>Fade (s) &mdash; rising and falling edge duration of each flash</label>
 <input type="number" name="fade_sec" step="0.1" min="0.1" max="10" value="%.1f">
+</details>
 <br>
 <button id="saveBtn" class="btn save" type="submit">Save</button>
 </form>

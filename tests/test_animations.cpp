@@ -15,8 +15,9 @@ protected:
     void SetUp() override {
         g_mock_millis = 0;
         cfg_num_leds  = DEFAULT_NUM_LEDS;
-        cfg_hold_sec  = DEFAULT_HOLD_SEC;
-        cfg_fade_sec  = DEFAULT_FADE_SEC;
+        cfg_hold_sec       = DEFAULT_HOLD_SEC;
+        cfg_alert_hold_sec = DEFAULT_ALERT_HOLD_SEC;
+        cfg_fade_sec       = DEFAULT_FADE_SEC;
         FastLED.resetShowCount();
         for (int i = 0; i < MAX_LEDS; i++) {
             leds[i]               = CRGB(0, 0, 0);
@@ -24,7 +25,8 @@ protected:
             ledStates[i].blendAmt = 0;
             ledStates[i].fadeDir  = 1;
             ledStates[i].lastTick = 0;
-            ledStates[i].holdUntil  = 0;
+            ledStates[i].holdUntil      = 0;
+            ledStates[i].alertHoldUntil = 0;
             ledStates[i].baseColor  = CRGB(0, 0, 255);   // blue
             ledStates[i].alertColor = CRGB(255, 0, 0);   // red
         }
@@ -32,11 +34,12 @@ protected:
 
     // Set LED i to active alert, hold phase already expired.
     void makeActive(int i, AlertType alert = ALERT_RAIN) {
-        ledStates[i].alert     = alert;
-        ledStates[i].blendAmt  = 0;
-        ledStates[i].fadeDir   = 1;
-        ledStates[i].lastTick  = 0;
-        ledStates[i].holdUntil = 0;
+        ledStates[i].alert          = alert;
+        ledStates[i].blendAmt       = 0;
+        ledStates[i].fadeDir        = 1;
+        ledStates[i].lastTick       = 0;
+        ledStates[i].holdUntil      = 0;
+        ledStates[i].alertHoldUntil = 0;
     }
 
     void tick(unsigned long elapsedMs = 0) {
@@ -262,4 +265,57 @@ TEST_F(AnimationsTest, SlowerFadeSecIncreasesTickInterval) {
     tickAnimations();
     EXPECT_EQ(ledStates[0].blendAmt, 0);   // not yet updated
     EXPECT_EQ(FastLED.showCount, 0);
+}
+
+// Description: When blendAmt reaches 255, alertHoldUntil is set to
+// now + cfg_alert_hold_sec*1000 so the LED pauses at full alert color.
+TEST_F(AnimationsTest, AlertHoldUntilSetWhenBlendPeaks) {
+    RecordProperty("description",
+        "When blendAmt reaches 255, alertHoldUntil is set to "
+        "now + cfg_alert_hold_sec*1000 so the LED pauses at full alert color.");
+    makeActive(0);
+    ledStates[0].blendAmt = 255 - FADE_STEP;   // one step from peak
+    ledStates[0].fadeDir  = 1;
+    g_mock_millis = 2000;
+    unsigned long elapsed = fadeIntervalMs() + 1;
+    g_mock_millis += elapsed;
+    tickAnimations();
+    EXPECT_EQ(ledStates[0].blendAmt, 255);
+    EXPECT_EQ(ledStates[0].alertHoldUntil,
+              2000UL + elapsed + (unsigned long)(cfg_alert_hold_sec * 1000.0f));
+}
+
+// Description: While alertHoldUntil is in the future, blendAmt stays at 255
+// and show() is not called, holding the LED on the alert color.
+TEST_F(AnimationsTest, AlertHoldBlocksReversal) {
+    RecordProperty("description",
+        "While alertHoldUntil is in the future, blendAmt stays at 255 and "
+        "show() is not called, holding the LED on the alert color.");
+    makeActive(0);
+    ledStates[0].blendAmt       = 255;
+    ledStates[0].fadeDir        = -1;
+    ledStates[0].alertHoldUntil = 99999;   // far in the future
+    leds[0] = blend(ledStates[0].baseColor, ledStates[0].alertColor, 255);
+    CRGB before = leds[0];
+    tick();
+    EXPECT_EQ(leds[0], before);           // color unchanged during alert hold
+    EXPECT_EQ(ledStates[0].blendAmt, 255);
+    EXPECT_EQ(FastLED.showCount, 0);
+}
+
+// Description: Once alertHoldUntil passes, blendAmt begins decreasing on the
+// next eligible tick, starting the fade-out back to the temperature color.
+TEST_F(AnimationsTest, AlertHoldExpiryAllowsFadeOut) {
+    RecordProperty("description",
+        "Once alertHoldUntil passes, blendAmt begins decreasing on the next "
+        "eligible tick, starting the fade-out back to the temperature color.");
+    cfg_alert_hold_sec = 0.1f;   // 100 ms hold
+    makeActive(0);
+    ledStates[0].blendAmt       = 255;
+    ledStates[0].fadeDir        = -1;
+    ledStates[0].alertHoldUntil = 500;
+    g_mock_millis = 501;   // just past the alert hold
+    g_mock_millis += fadeIntervalMs() + 1;
+    tickAnimations();
+    EXPECT_LT(ledStates[0].blendAmt, 255);   // fade-out has started
 }

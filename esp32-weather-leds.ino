@@ -31,6 +31,7 @@
 #define DEFAULT_WIFI_SSID       ""
 #define DEFAULT_WIFI_PASS       ""
 #define DEFAULT_HOLD_SEC        3.0f     // seconds to hold on temperature color between flashes
+#define DEFAULT_ALERT_HOLD_SEC  0.5f     // seconds to hold at full alert color before fading back
 #define DEFAULT_FADE_SEC        0.5f     // seconds for one complete fade cycle
 
 // Runtime config (loaded from NVS, used everywhere)
@@ -46,8 +47,9 @@ float    cfg_heat_thr   = DEFAULT_HEAT_THR_F;
 float    cfg_precip_thr = DEFAULT_PRECIP_THR_PCT;
 char     cfg_wifi_ssid[64] = DEFAULT_WIFI_SSID;
 char     cfg_wifi_pass[64] = DEFAULT_WIFI_PASS;
-float    cfg_hold_sec   = DEFAULT_HOLD_SEC;
-float    cfg_fade_sec   = DEFAULT_FADE_SEC;
+float    cfg_hold_sec        = DEFAULT_HOLD_SEC;
+float    cfg_alert_hold_sec  = DEFAULT_ALERT_HOLD_SEC;
+float    cfg_fade_sec        = DEFAULT_FADE_SEC;
 
 // Alert colors
 #define COLOR_FREEZE  CRGB(200, 200, 255)  // icy white-blue, distinct from cold blue base
@@ -81,10 +83,11 @@ struct LEDState {
   CRGB      baseColor;
   CRGB      alertColor;
   AlertType alert;
-  int       blendAmt;    // 0–255
-  int       fadeDir;     // +1 or -1
+  int       blendAmt;         // 0–255
+  int       fadeDir;          // +1 or -1
   unsigned long lastTick;
-  unsigned long holdUntil; // millis() when hold-on-base phase ends
+  unsigned long holdUntil;      // millis() when hold-on-base phase ends
+  unsigned long alertHoldUntil; // millis() when hold-on-alert phase ends
 };
 
 CRGB leds[MAX_LEDS];
@@ -104,12 +107,13 @@ void loadConfig() {
   prefs.getString("longitude", DEFAULT_LONGITUDE).toCharArray(cfg_longitude, sizeof(cfg_longitude));
   prefs.getString("wifi_ssid", DEFAULT_WIFI_SSID).toCharArray(cfg_wifi_ssid, sizeof(cfg_wifi_ssid));
   prefs.getString("wifi_pass", DEFAULT_WIFI_PASS).toCharArray(cfg_wifi_pass, sizeof(cfg_wifi_pass));
-  cfg_hold_sec   = prefs.getFloat("hold_sec",    DEFAULT_HOLD_SEC);
-  cfg_fade_sec   = prefs.getFloat("fade_sec",    DEFAULT_FADE_SEC);
+  cfg_hold_sec        = prefs.getFloat("hold_sec",       DEFAULT_HOLD_SEC);
+  cfg_alert_hold_sec  = prefs.getFloat("alert_hold_sec", DEFAULT_ALERT_HOLD_SEC);
+  cfg_fade_sec        = prefs.getFloat("fade_sec",       DEFAULT_FADE_SEC);
   prefs.end();
-  Serial.printf("Config: leds=%d brt=%d poll=%dmin cold=%.1f hot=%.1f lat=%s lon=%s ssid=%s hold=%.2fs fade=%.2fs\n",
+  Serial.printf("Config: leds=%d brt=%d poll=%dmin cold=%.1f hot=%.1f lat=%s lon=%s ssid=%s hold=%.2fs ahld=%.2fs fade=%.2fs\n",
                 cfg_num_leds, cfg_brightness, cfg_poll_min, cfg_cold_temp, cfg_hot_temp,
-                cfg_latitude, cfg_longitude, cfg_wifi_ssid, cfg_hold_sec, cfg_fade_sec);
+                cfg_latitude, cfg_longitude, cfg_wifi_ssid, cfg_hold_sec, cfg_alert_hold_sec, cfg_fade_sec);
 }
 
 void saveConfig() {
@@ -126,8 +130,9 @@ void saveConfig() {
   prefs.putString("longitude",  cfg_longitude);
   prefs.putString("wifi_ssid",  cfg_wifi_ssid);
   prefs.putString("wifi_pass",  cfg_wifi_pass);
-  prefs.putFloat("hold_sec",    cfg_hold_sec);
-  prefs.putFloat("fade_sec",    cfg_fade_sec);
+  prefs.putFloat("hold_sec",       cfg_hold_sec);
+  prefs.putFloat("alert_hold_sec", cfg_alert_hold_sec);
+  prefs.putFloat("fade_sec",       cfg_fade_sec);
   prefs.end();
 }
 
@@ -236,8 +241,9 @@ void pollWeather() {
       ledStates[i].alert      = alert;
       ledStates[i].blendAmt   = 0;
       ledStates[i].fadeDir    = 1;
-      ledStates[i].lastTick   = now;
-      ledStates[i].holdUntil  = now + (unsigned long)(cfg_hold_sec * 1000.0f);
+      ledStates[i].lastTick        = now;
+      ledStates[i].holdUntil       = now + (unsigned long)(cfg_hold_sec * 1000.0f);
+      ledStates[i].alertHoldUntil  = 0;
 
       leds[i] = base;
     }
@@ -263,21 +269,24 @@ void pollWeather() {
 void tickAnimations() {
   bool changed = false;
   unsigned long now = millis();
-  unsigned long holdMs = (unsigned long)(cfg_hold_sec * 1000.0f);
+  unsigned long holdMs       = (unsigned long)(cfg_hold_sec * 1000.0f);
+  unsigned long alertHoldMs  = (unsigned long)(cfg_alert_hold_sec * 1000.0f);
   unsigned long fadeIntervalMs = (unsigned long)(cfg_fade_sec * 1000.0f * FADE_STEP / 255.0f + 0.5f);
   if (fadeIntervalMs < 1) fadeIntervalMs = 1;
 
   for (int i = 0; i < MAX_LEDS; i++) {
     if (ledStates[i].alert == ALERT_NONE) continue;
     if (now < ledStates[i].holdUntil) continue;          // holding on base color
+    if (now < ledStates[i].alertHoldUntil) continue;     // holding on alert color
     if (now - ledStates[i].lastTick < fadeIntervalMs) continue;
 
     ledStates[i].lastTick = now;
     ledStates[i].blendAmt += ledStates[i].fadeDir * FADE_STEP;
 
     if (ledStates[i].blendAmt >= 255) {
-      ledStates[i].blendAmt = 255;
-      ledStates[i].fadeDir  = -1;
+      ledStates[i].blendAmt       = 255;
+      ledStates[i].fadeDir        = -1;
+      ledStates[i].alertHoldUntil = now + alertHoldMs;  // pause at full alert color
     } else if (ledStates[i].blendAmt <= 0) {
       ledStates[i].blendAmt  = 0;
       ledStates[i].fadeDir   = 1;
@@ -343,7 +352,7 @@ void startAPMode() {
 }
 
 void handleRoot() {
-  static char page[11264];
+  static char page[12288];
   String ip = g_ap_mode ? WiFi.softAPIP().toString() : WiFi.localIP().toString();
   const char* stationDisplay = g_ap_mode ? "none" : "block";
   snprintf(page, sizeof(page), CONFIG_HTML,
@@ -353,7 +362,7 @@ void handleRoot() {
            cfg_cold_temp, cfg_hot_temp,
            cfg_latitude, cfg_longitude,
            cfg_freeze_thr, cfg_heat_thr, cfg_precip_thr,
-           cfg_hold_sec, cfg_fade_sec,     // animation timing fields
+           cfg_hold_sec, cfg_alert_hold_sec, cfg_fade_sec,  // nerdy settings section
            cfg_wifi_ssid,                  // SSID field (now at bottom of form)
            stationDisplay,                 // station-only section (poll + OTA)
            FIRMWARE_VERSION, FIRMWARE_BUILD_TIMESTAMP,
@@ -387,6 +396,8 @@ void handleSave() {
     cfg_precip_thr = server.arg("precip_thr").toFloat();
   if (server.hasArg("hold_sec"))
     cfg_hold_sec = constrain(server.arg("hold_sec").toFloat(), 0.1f, 60.0f);
+  if (server.hasArg("alert_hold_sec"))
+    cfg_alert_hold_sec = constrain(server.arg("alert_hold_sec").toFloat(), 0.0f, 10.0f);
   if (server.hasArg("fade_sec"))
     cfg_fade_sec = constrain(server.arg("fade_sec").toFloat(), 0.1f, 10.0f);
 

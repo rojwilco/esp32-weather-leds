@@ -15,8 +15,9 @@ protected:
         cfg_freeze_thr  = DEFAULT_FREEZE_THR_F;
         cfg_heat_thr    = DEFAULT_HEAT_THR_F;
         cfg_precip_thr  = DEFAULT_PRECIP_THR_PCT;
-        cfg_hold_sec    = DEFAULT_HOLD_SEC;
-        cfg_fade_sec    = DEFAULT_FADE_SEC;
+        cfg_hold_sec        = DEFAULT_HOLD_SEC;
+        cfg_alert_hold_sec  = DEFAULT_ALERT_HOLD_SEC;
+        cfg_fade_sec        = DEFAULT_FADE_SEC;
         strncpy(cfg_wifi_ssid, DEFAULT_WIFI_SSID, sizeof(cfg_wifi_ssid));
         strncpy(cfg_wifi_pass, DEFAULT_WIFI_PASS, sizeof(cfg_wifi_pass));
         g_ap_mode = false;

@@ -35,6 +35,7 @@
 #define DEFAULT_WIFI_SSID       ""
 #define DEFAULT_WIFI_PASS       ""
 #define DEFAULT_HOLD_SEC        3.0f
+#define DEFAULT_ALERT_HOLD_SEC  0.5f
 #define DEFAULT_FADE_SEC        0.5f
 
 #define FADE_STEP  3
@@ -61,6 +62,7 @@ struct LEDState {
     int       fadeDir;
     unsigned long lastTick;
     unsigned long holdUntil;
+    unsigned long alertHoldUntil;
 };
 
 // ── Sketch globals (defined in sketch_wrapper.cpp via sketch_lib) ─────────────
@@ -77,6 +79,7 @@ extern float    cfg_precip_thr;
 extern char     cfg_wifi_ssid[64];
 extern char     cfg_wifi_pass[64];
 extern float    cfg_hold_sec;
+extern float    cfg_alert_hold_sec;
 extern float    cfg_fade_sec;
 extern CRGB     leds[MAX_LEDS];
 extern LEDState ledStates[MAX_LEDS];

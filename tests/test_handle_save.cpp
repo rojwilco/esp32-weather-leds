@@ -15,8 +15,9 @@ protected:
         cfg_freeze_thr  = DEFAULT_FREEZE_THR_F;
         cfg_heat_thr    = DEFAULT_HEAT_THR_F;
         cfg_precip_thr  = DEFAULT_PRECIP_THR_PCT;
-        cfg_hold_sec    = DEFAULT_HOLD_SEC;
-        cfg_fade_sec    = DEFAULT_FADE_SEC;
+        cfg_hold_sec        = DEFAULT_HOLD_SEC;
+        cfg_alert_hold_sec  = DEFAULT_ALERT_HOLD_SEC;
+        cfg_fade_sec        = DEFAULT_FADE_SEC;
         strncpy(cfg_wifi_ssid, DEFAULT_WIFI_SSID, sizeof(cfg_wifi_ssid));
         strncpy(cfg_wifi_pass, DEFAULT_WIFI_PASS, sizeof(cfg_wifi_pass));
         g_forceRepoll    = false;
@@ -305,17 +306,53 @@ TEST_F(HandleSaveTest, FadeSecAcceptsFloat) {
     EXPECT_FLOAT_EQ(cfg_fade_sec, 0.25f);
 }
 
+// Description: An alert_hold_sec value above the 10 s maximum is clamped to 10
+// so the LED does not freeze indefinitely on the alert color.
+TEST_F(HandleSaveTest, AlertHoldSecClampedAtMax) {
+    RecordProperty("description",
+        "An alert_hold_sec value above the 10 s maximum is clamped to 10 so "
+        "the LED does not freeze indefinitely on the alert color.");
+    g_mock_server_args["alert_hold_sec"] = "999";
+    handleSave();
+    EXPECT_FLOAT_EQ(cfg_alert_hold_sec, 10.0f);
+}
+
+// Description: An alert_hold_sec of 0 is valid (no hold at peak) and is
+// stored as-is, allowing the flash to immediately start fading back.
+TEST_F(HandleSaveTest, AlertHoldSecZeroIsValid) {
+    RecordProperty("description",
+        "An alert_hold_sec of 0 is valid (no hold at peak) and is stored as-is, "
+        "allowing the flash to immediately start fading back.");
+    g_mock_server_args["alert_hold_sec"] = "0";
+    handleSave();
+    EXPECT_FLOAT_EQ(cfg_alert_hold_sec, 0.0f);
+}
+
+// Description: A fractional alert_hold_sec like 0.75 is accepted exactly,
+// confirming that sub-second resolution is supported.
+TEST_F(HandleSaveTest, AlertHoldSecAcceptsFloat) {
+    RecordProperty("description",
+        "A fractional alert_hold_sec like 0.75 is accepted exactly, confirming "
+        "that sub-second resolution is supported.");
+    g_mock_server_args["alert_hold_sec"] = "0.75";
+    handleSave();
+    EXPECT_FLOAT_EQ(cfg_alert_hold_sec, 0.75f);
+}
+
 // Description: The hold_sec and fade_sec values are written to NVS so they
 // survive a device reboot and are restored by loadConfig().
 TEST_F(HandleSaveTest, AnimTimingPersistedToNvs) {
     RecordProperty("description",
         "The hold_sec and fade_sec values are written to NVS so they survive "
         "a device reboot and are restored by loadConfig().");
-    g_mock_server_args["hold_sec"] = "2.5";
-    g_mock_server_args["fade_sec"] = "0.75";
+    g_mock_server_args["hold_sec"]       = "2.5";
+    g_mock_server_args["alert_hold_sec"] = "0.3";
+    g_mock_server_args["fade_sec"]       = "0.75";
     handleSave();
-    ASSERT_NE(g_mock_prefs_store.find("hold_sec"), g_mock_prefs_store.end());
-    ASSERT_NE(g_mock_prefs_store.find("fade_sec"), g_mock_prefs_store.end());
-    EXPECT_FLOAT_EQ(std::stof(g_mock_prefs_store["hold_sec"]), 2.5f);
-    EXPECT_FLOAT_EQ(std::stof(g_mock_prefs_store["fade_sec"]), 0.75f);
+    ASSERT_NE(g_mock_prefs_store.find("hold_sec"),       g_mock_prefs_store.end());
+    ASSERT_NE(g_mock_prefs_store.find("alert_hold_sec"), g_mock_prefs_store.end());
+    ASSERT_NE(g_mock_prefs_store.find("fade_sec"),       g_mock_prefs_store.end());
+    EXPECT_FLOAT_EQ(std::stof(g_mock_prefs_store["hold_sec"]),       2.5f);
+    EXPECT_FLOAT_EQ(std::stof(g_mock_prefs_store["alert_hold_sec"]), 0.3f);
+    EXPECT_FLOAT_EQ(std::stof(g_mock_prefs_store["fade_sec"]),       0.75f);
 }

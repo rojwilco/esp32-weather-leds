@@ -133,6 +133,10 @@ select{width:100%%;box-sizing:border-box;background:#2a2a2a;color:#e0e0e0;border
 <input type="number" name="heat_thr" step="0.1" value="%.1f">
 <label>Precipitation threshold %%</label>
 <input type="number" name="precip_thr" step="0.1" min="0" max="100" value="%.1f">
+<label>Hold duration (s) &mdash; pause on temperature color between flashes</label>
+<input type="number" name="hold_sec" step="0.1" min="0.1" max="60" value="%.1f">
+<label>Fade duration (s) &mdash; length of each alert flash cycle</label>
+<input type="number" name="fade_sec" step="0.1" min="0.1" max="10" value="%.1f">
 <br>
 <button id="saveBtn" class="btn save" type="submit">Save</button>
 </form>

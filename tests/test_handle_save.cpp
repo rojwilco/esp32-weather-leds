@@ -15,6 +15,8 @@ protected:
         cfg_freeze_thr  = DEFAULT_FREEZE_THR_F;
         cfg_heat_thr    = DEFAULT_HEAT_THR_F;
         cfg_precip_thr  = DEFAULT_PRECIP_THR_PCT;
+        cfg_hold_sec    = DEFAULT_HOLD_SEC;
+        cfg_fade_sec    = DEFAULT_FADE_SEC;
         strncpy(cfg_wifi_ssid, DEFAULT_WIFI_SSID, sizeof(cfg_wifi_ssid));
         strncpy(cfg_wifi_pass, DEFAULT_WIFI_PASS, sizeof(cfg_wifi_pass));
         g_forceRepoll    = false;
@@ -235,4 +237,85 @@ TEST_F(HandleSaveTest, NumLedsPersistedToNvs) {
     g_mock_server_args["num_leds"] = "8";
     handleSave();
     EXPECT_EQ(g_mock_prefs_store["num_leds"], "8");
+}
+
+// Description: A hold_sec value above the 60 s maximum is clamped to 60
+// so the device never waits an unreasonable time between animation cycles.
+TEST_F(HandleSaveTest, HoldSecClampedAtMax) {
+    RecordProperty("description",
+        "A hold_sec value above the 60 s maximum is clamped to 60 so the "
+        "device never waits an unreasonable time between animation cycles.");
+    g_mock_server_args["hold_sec"] = "999";
+    handleSave();
+    EXPECT_FLOAT_EQ(cfg_hold_sec, 60.0f);
+}
+
+// Description: A hold_sec value below the 0.1 s minimum is clamped to 0.1
+// so animation always has a measurable hold phase.
+TEST_F(HandleSaveTest, HoldSecClampedAtMin) {
+    RecordProperty("description",
+        "A hold_sec value below the 0.1 s minimum is clamped to 0.1 so "
+        "animation always has a measurable hold phase.");
+    g_mock_server_args["hold_sec"] = "0.0";
+    handleSave();
+    EXPECT_FLOAT_EQ(cfg_hold_sec, 0.1f);
+}
+
+// Description: A fractional hold_sec value like 1.5 is stored exactly,
+// confirming that sub-second resolution is accepted.
+TEST_F(HandleSaveTest, HoldSecAcceptsFloat) {
+    RecordProperty("description",
+        "A fractional hold_sec value like 1.5 is stored exactly, confirming "
+        "that sub-second resolution is accepted.");
+    g_mock_server_args["hold_sec"] = "1.5";
+    handleSave();
+    EXPECT_FLOAT_EQ(cfg_hold_sec, 1.5f);
+}
+
+// Description: A fade_sec value above the 10 s maximum is clamped to 10
+// so the fade duration stays within a reasonable range.
+TEST_F(HandleSaveTest, FadeSecClampedAtMax) {
+    RecordProperty("description",
+        "A fade_sec value above the 10 s maximum is clamped to 10 so the "
+        "fade duration stays within a reasonable range.");
+    g_mock_server_args["fade_sec"] = "999";
+    handleSave();
+    EXPECT_FLOAT_EQ(cfg_fade_sec, 10.0f);
+}
+
+// Description: A fade_sec value below the 0.1 s minimum is clamped to 0.1
+// so the fade is always visibly perceptible.
+TEST_F(HandleSaveTest, FadeSecClampedAtMin) {
+    RecordProperty("description",
+        "A fade_sec value below the 0.1 s minimum is clamped to 0.1 so "
+        "the fade is always visibly perceptible.");
+    g_mock_server_args["fade_sec"] = "0.0";
+    handleSave();
+    EXPECT_FLOAT_EQ(cfg_fade_sec, 0.1f);
+}
+
+// Description: A fractional fade_sec value like 0.25 is stored exactly,
+// confirming that quarter-second resolution is accepted.
+TEST_F(HandleSaveTest, FadeSecAcceptsFloat) {
+    RecordProperty("description",
+        "A fractional fade_sec value like 0.25 is stored exactly, confirming "
+        "that quarter-second resolution is accepted.");
+    g_mock_server_args["fade_sec"] = "0.25";
+    handleSave();
+    EXPECT_FLOAT_EQ(cfg_fade_sec, 0.25f);
+}
+
+// Description: The hold_sec and fade_sec values are written to NVS so they
+// survive a device reboot and are restored by loadConfig().
+TEST_F(HandleSaveTest, AnimTimingPersistedToNvs) {
+    RecordProperty("description",
+        "The hold_sec and fade_sec values are written to NVS so they survive "
+        "a device reboot and are restored by loadConfig().");
+    g_mock_server_args["hold_sec"] = "2.5";
+    g_mock_server_args["fade_sec"] = "0.75";
+    handleSave();
+    ASSERT_NE(g_mock_prefs_store.find("hold_sec"), g_mock_prefs_store.end());
+    ASSERT_NE(g_mock_prefs_store.find("fade_sec"), g_mock_prefs_store.end());
+    EXPECT_FLOAT_EQ(std::stof(g_mock_prefs_store["hold_sec"]), 2.5f);
+    EXPECT_FLOAT_EQ(std::stof(g_mock_prefs_store["fade_sec"]), 0.75f);
 }

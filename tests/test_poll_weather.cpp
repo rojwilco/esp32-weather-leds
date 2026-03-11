@@ -35,6 +35,8 @@ protected:
         cfg_precip_thr = DEFAULT_PRECIP_THR_PCT;
         cfg_cold_temp  = DEFAULT_COLD_TEMP_F;
         cfg_hot_temp   = DEFAULT_HOT_TEMP_F;
+        cfg_hold_sec   = DEFAULT_HOLD_SEC;
+        cfg_fade_sec   = DEFAULT_FADE_SEC;
     }
 
     void setAllDays(float tempMax, float tempMin, float precip) {
@@ -197,18 +199,19 @@ TEST_F(PollWeatherTest, HotDayBaseColorIsReddish) {
 }
 
 // Description: After a poll, alert LEDs have blendAmt=0, fadeDir=+1, and
-// holdUntil set to the poll time plus HOLD_MS, ready to start the animation cycle.
+// holdUntil set to the poll time plus cfg_hold_sec*1000, ready to start the animation cycle.
 TEST_F(PollWeatherTest, AnimationInitialisedAtPollTime) {
     RecordProperty("description",
         "After a poll, alert LEDs have blendAmt=0, fadeDir=+1, and holdUntil "
-        "set to the poll time plus HOLD_MS, ready to start the animation cycle.");
+        "set to the poll time plus cfg_hold_sec*1000, ready to start the animation cycle.");
     setAllDays(100.0f, 28.0f, 70.0f);   // rain alert
     g_mock_millis = 5000;
     pollWeather();
+    unsigned long expectedHold = 5000UL + (unsigned long)(cfg_hold_sec * 1000.0f);
     for (int i = 0; i < cfg_num_leds; i++) {
-        EXPECT_EQ(ledStates[i].blendAmt, 0)                           << "LED " << i;
-        EXPECT_EQ(ledStates[i].fadeDir,  1)                           << "LED " << i;
-        EXPECT_EQ(ledStates[i].holdUntil, 5000UL + HOLD_MS)           << "LED " << i;
+        EXPECT_EQ(ledStates[i].blendAmt, 0)                << "LED " << i;
+        EXPECT_EQ(ledStates[i].fadeDir,  1)                << "LED " << i;
+        EXPECT_EQ(ledStates[i].holdUntil, expectedHold)    << "LED " << i;
     }
 }
 

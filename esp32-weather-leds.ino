@@ -30,6 +30,8 @@
 #define DEFAULT_PRECIP_THR_PCT  50.0f
 #define DEFAULT_WIFI_SSID       ""
 #define DEFAULT_WIFI_PASS       ""
+#define DEFAULT_HOLD_SEC        3.0f     // seconds to hold on temperature color between flashes
+#define DEFAULT_FADE_SEC        0.5f     // seconds for one complete fade cycle
 
 // Runtime config (loaded from NVS, used everywhere)
 uint8_t  cfg_num_leds   = DEFAULT_NUM_LEDS;
@@ -44,16 +46,16 @@ float    cfg_heat_thr   = DEFAULT_HEAT_THR_F;
 float    cfg_precip_thr = DEFAULT_PRECIP_THR_PCT;
 char     cfg_wifi_ssid[64] = DEFAULT_WIFI_SSID;
 char     cfg_wifi_pass[64] = DEFAULT_WIFI_PASS;
+float    cfg_hold_sec   = DEFAULT_HOLD_SEC;
+float    cfg_fade_sec   = DEFAULT_FADE_SEC;
 
 // Alert colors
 #define COLOR_FREEZE  CRGB(200, 200, 255)  // icy white-blue, distinct from cold blue base
 #define COLOR_HEAT    CRGB(255, 140, 0)    // orange, distinct from hot red base
 #define COLOR_RAIN    CRGB(0,   200, 200)
 
-// Animation timing: ~500ms fade each way (255/3 steps × 6ms), 2s hold on base temperature color
-#define FADE_STEP         3
-#define FADE_INTERVAL_MS  6
-#define HOLD_MS           3000UL
+// Animation: blendAmt steps of 3 per tick; tick interval and hold duration are runtime-configurable.
+#define FADE_STEP  3
 
 Preferences prefs;
 WebServer   server(80);
@@ -102,10 +104,12 @@ void loadConfig() {
   prefs.getString("longitude", DEFAULT_LONGITUDE).toCharArray(cfg_longitude, sizeof(cfg_longitude));
   prefs.getString("wifi_ssid", DEFAULT_WIFI_SSID).toCharArray(cfg_wifi_ssid, sizeof(cfg_wifi_ssid));
   prefs.getString("wifi_pass", DEFAULT_WIFI_PASS).toCharArray(cfg_wifi_pass, sizeof(cfg_wifi_pass));
+  cfg_hold_sec   = prefs.getFloat("hold_sec",    DEFAULT_HOLD_SEC);
+  cfg_fade_sec   = prefs.getFloat("fade_sec",    DEFAULT_FADE_SEC);
   prefs.end();
-  Serial.printf("Config: leds=%d brt=%d poll=%dmin cold=%.1f hot=%.1f lat=%s lon=%s ssid=%s\n",
+  Serial.printf("Config: leds=%d brt=%d poll=%dmin cold=%.1f hot=%.1f lat=%s lon=%s ssid=%s hold=%.2fs fade=%.2fs\n",
                 cfg_num_leds, cfg_brightness, cfg_poll_min, cfg_cold_temp, cfg_hot_temp,
-                cfg_latitude, cfg_longitude, cfg_wifi_ssid);
+                cfg_latitude, cfg_longitude, cfg_wifi_ssid, cfg_hold_sec, cfg_fade_sec);
 }
 
 void saveConfig() {
@@ -122,6 +126,8 @@ void saveConfig() {
   prefs.putString("longitude",  cfg_longitude);
   prefs.putString("wifi_ssid",  cfg_wifi_ssid);
   prefs.putString("wifi_pass",  cfg_wifi_pass);
+  prefs.putFloat("hold_sec",    cfg_hold_sec);
+  prefs.putFloat("fade_sec",    cfg_fade_sec);
   prefs.end();
 }
 
@@ -231,7 +237,7 @@ void pollWeather() {
       ledStates[i].blendAmt   = 0;
       ledStates[i].fadeDir    = 1;
       ledStates[i].lastTick   = now;
-      ledStates[i].holdUntil  = now + HOLD_MS;
+      ledStates[i].holdUntil  = now + (unsigned long)(cfg_hold_sec * 1000.0f);
 
       leds[i] = base;
     }
@@ -257,11 +263,14 @@ void pollWeather() {
 void tickAnimations() {
   bool changed = false;
   unsigned long now = millis();
+  unsigned long holdMs = (unsigned long)(cfg_hold_sec * 1000.0f);
+  unsigned long fadeIntervalMs = (unsigned long)(cfg_fade_sec * 1000.0f * FADE_STEP / 255.0f + 0.5f);
+  if (fadeIntervalMs < 1) fadeIntervalMs = 1;
 
   for (int i = 0; i < MAX_LEDS; i++) {
     if (ledStates[i].alert == ALERT_NONE) continue;
     if (now < ledStates[i].holdUntil) continue;          // holding on base color
-    if (now - ledStates[i].lastTick < FADE_INTERVAL_MS) continue;
+    if (now - ledStates[i].lastTick < fadeIntervalMs) continue;
 
     ledStates[i].lastTick = now;
     ledStates[i].blendAmt += ledStates[i].fadeDir * FADE_STEP;
@@ -272,7 +281,7 @@ void tickAnimations() {
     } else if (ledStates[i].blendAmt <= 0) {
       ledStates[i].blendAmt  = 0;
       ledStates[i].fadeDir   = 1;
-      ledStates[i].holdUntil = now + HOLD_MS;  // restart 3s hold on base
+      ledStates[i].holdUntil = now + holdMs;  // restart hold on base
     }
 
     leds[i] = blend(ledStates[i].baseColor, ledStates[i].alertColor,
@@ -344,6 +353,7 @@ void handleRoot() {
            cfg_cold_temp, cfg_hot_temp,
            cfg_latitude, cfg_longitude,
            cfg_freeze_thr, cfg_heat_thr, cfg_precip_thr,
+           cfg_hold_sec, cfg_fade_sec,     // animation timing fields
            cfg_wifi_ssid,                  // SSID field (now at bottom of form)
            stationDisplay,                 // station-only section (poll + OTA)
            FIRMWARE_VERSION, FIRMWARE_BUILD_TIMESTAMP,
@@ -375,6 +385,10 @@ void handleSave() {
     cfg_heat_thr   = server.arg("heat_thr").toFloat();
   if (server.hasArg("precip_thr"))
     cfg_precip_thr = server.arg("precip_thr").toFloat();
+  if (server.hasArg("hold_sec"))
+    cfg_hold_sec = constrain(server.arg("hold_sec").toFloat(), 0.1f, 60.0f);
+  if (server.hasArg("fade_sec"))
+    cfg_fade_sec = constrain(server.arg("fade_sec").toFloat(), 0.1f, 10.0f);
 
   bool locationChanged = false;
   if (server.hasArg("latitude")) {

@@ -5,9 +5,18 @@
 
 class AnimationsTest : public ::testing::Test {
 protected:
+    // Compute the fade tick interval from the current cfg_fade_sec setting,
+    // matching the formula used by tickAnimations().
+    unsigned long fadeIntervalMs() const {
+        unsigned long ms = (unsigned long)(cfg_fade_sec * 1000.0f * FADE_STEP / 255.0f + 0.5f);
+        return ms < 1 ? 1 : ms;
+    }
+
     void SetUp() override {
         g_mock_millis = 0;
         cfg_num_leds  = DEFAULT_NUM_LEDS;
+        cfg_hold_sec  = DEFAULT_HOLD_SEC;
+        cfg_fade_sec  = DEFAULT_FADE_SEC;
         FastLED.resetShowCount();
         for (int i = 0; i < MAX_LEDS; i++) {
             leds[i]               = CRGB(0, 0, 0);
@@ -30,8 +39,8 @@ protected:
         ledStates[i].holdUntil = 0;
     }
 
-    void tick(unsigned long elapsedMs = FADE_INTERVAL_MS + 1) {
-        g_mock_millis += elapsedMs;
+    void tick(unsigned long elapsedMs = 0) {
+        g_mock_millis += elapsedMs ? elapsedMs : fadeIntervalMs() + 1;
         tickAnimations();
     }
 };
@@ -65,14 +74,14 @@ TEST_F(AnimationsTest, HoldPhaseBlocksUpdate) {
     EXPECT_EQ(FastLED.showCount, 0);
 }
 
-// Description: If less than FADE_INTERVAL_MS has elapsed since the last tick,
+// Description: If less than the computed fade tick interval has elapsed since the last tick,
 // the LED is not updated, preventing animation from running faster than intended.
 TEST_F(AnimationsTest, FadeIntervalThrottlesUpdates) {
     RecordProperty("description",
-        "If less than FADE_INTERVAL_MS has elapsed since the last tick, "
+        "If less than the computed fade tick interval has elapsed since the last tick, "
         "the LED is not updated, preventing animation from running faster than intended.");
     makeActive(0);
-    g_mock_millis += 1;   // only 1 ms — below FADE_INTERVAL_MS
+    g_mock_millis += 1;   // only 1 ms — below default fadeIntervalMs (~6ms)
     tickAnimations();
     EXPECT_EQ(FastLED.showCount, 0);
 }
@@ -120,21 +129,21 @@ TEST_F(AnimationsTest, BlendAmountDecreasesInReversePhase) {
 }
 
 // Description: When blendAmt reaches 0 in the fade-out phase, fadeDir flips
-// back to +1 and holdUntil is reset to now + HOLD_MS to pause before the next cycle.
+// back to +1 and holdUntil is reset to now + cfg_hold_sec*1000 to pause before the next cycle.
 TEST_F(AnimationsTest, ReachingZeroRestartsHold) {
     RecordProperty("description",
         "When blendAmt reaches 0 in the fade-out phase, fadeDir flips back to "
-        "+1 and holdUntil is reset to now + HOLD_MS to pause before the next cycle.");
+        "+1 and holdUntil is reset to now + cfg_hold_sec*1000 to pause before the next cycle.");
     makeActive(0);
     ledStates[0].blendAmt = FADE_STEP;   // one step from zero
     ledStates[0].fadeDir  = -1;
     g_mock_millis = 10000;
-    unsigned long elapsed = FADE_INTERVAL_MS + 1;
+    unsigned long elapsed = fadeIntervalMs() + 1;
     g_mock_millis += elapsed;
     tickAnimations();
     EXPECT_EQ(ledStates[0].blendAmt, 0);
     EXPECT_EQ(ledStates[0].fadeDir,  1);
-    EXPECT_EQ(ledStates[0].holdUntil, 10000UL + elapsed + HOLD_MS);
+    EXPECT_EQ(ledStates[0].holdUntil, 10000UL + elapsed + (unsigned long)(cfg_hold_sec * 1000.0f));
 }
 
 // Description: The LED's displayed color is the CRGB blend of baseColor and
@@ -190,4 +199,67 @@ TEST_F(AnimationsTest, NonActiveLedUnaffectedByNeighbour) {
     leds[1] = CRGB(50, 100, 150);
     tick();
     EXPECT_EQ(leds[1], CRGB(50, 100, 150));
+}
+
+// Description: A longer cfg_hold_sec keeps the LED in the hold phase for the
+// configured duration rather than the old compile-time constant.
+TEST_F(AnimationsTest, LongerHoldSecExtendsHoldPhase) {
+    RecordProperty("description",
+        "A longer cfg_hold_sec keeps the LED in the hold phase for the "
+        "configured duration rather than the old compile-time constant.");
+    cfg_hold_sec = 10.0f;   // 10-second hold
+    makeActive(0);
+    ledStates[0].holdUntil = (unsigned long)(cfg_hold_sec * 1000.0f);   // 10 000 ms
+    leds[0] = CRGB(0, 0, 255);
+    // Advance only 5 s — still within hold
+    g_mock_millis = 5000;
+    tickAnimations();
+    EXPECT_EQ(leds[0], CRGB(0, 0, 255));   // unchanged; hold not expired
+    EXPECT_EQ(FastLED.showCount, 0);
+}
+
+// Description: A shorter cfg_hold_sec causes holdUntil to be set closer in
+// time so the animation loop resumes sooner after blendAmt returns to 0.
+TEST_F(AnimationsTest, ShorterHoldSecSetsNearerHoldUntil) {
+    RecordProperty("description",
+        "A shorter cfg_hold_sec causes holdUntil to be set closer in time so "
+        "the animation loop resumes sooner after blendAmt returns to 0.");
+    cfg_hold_sec = 0.5f;   // 500 ms hold
+    makeActive(0);
+    ledStates[0].blendAmt = FADE_STEP;
+    ledStates[0].fadeDir  = -1;
+    g_mock_millis = 1000;
+    unsigned long elapsed = fadeIntervalMs() + 1;
+    g_mock_millis += elapsed;
+    tickAnimations();
+    EXPECT_EQ(ledStates[0].holdUntil, 1000UL + elapsed + 500UL);
+}
+
+// Description: A faster cfg_fade_sec reduces the tick interval so the LED
+// updates on every eligible call rather than waiting the default ~6 ms.
+TEST_F(AnimationsTest, FasterFadeSecReducesTickInterval) {
+    RecordProperty("description",
+        "A faster cfg_fade_sec reduces the tick interval so the LED updates on "
+        "every eligible call rather than waiting the default ~6 ms.");
+    cfg_fade_sec = 0.1f;   // very short fade → tiny interval (~1 ms)
+    makeActive(0);
+    // Advance by exactly 1 ms — should be enough for a fast fade
+    g_mock_millis += 2;
+    tickAnimations();
+    EXPECT_GT(ledStates[0].blendAmt, 0);   // animation advanced
+}
+
+// Description: A slower cfg_fade_sec increases the tick interval so the LED
+// does not advance within a small elapsed time.
+TEST_F(AnimationsTest, SlowerFadeSecIncreasesTickInterval) {
+    RecordProperty("description",
+        "A slower cfg_fade_sec increases the tick interval so the LED does not "
+        "advance within a small elapsed time.");
+    cfg_fade_sec = 5.0f;   // slow fade → interval ≈ 59 ms
+    makeActive(0);
+    // Advance only 10 ms — below the ~59 ms interval for a 5 s fade
+    g_mock_millis += 10;
+    tickAnimations();
+    EXPECT_EQ(ledStates[0].blendAmt, 0);   // not yet updated
+    EXPECT_EQ(FastLED.showCount, 0);
 }

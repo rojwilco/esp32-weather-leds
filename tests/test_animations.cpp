@@ -84,7 +84,7 @@ TEST_F(AnimationsTest, FadeIntervalThrottlesUpdates) {
         "If less than the computed fade tick interval has elapsed since the last tick, "
         "the LED is not updated, preventing animation from running faster than intended.");
     makeActive(0);
-    g_mock_millis += 1;   // only 1 ms — below default fadeIntervalMs (~6ms)
+    g_mock_millis += 1;   // only 1 ms — below default fadeIntervalMs (~2ms)
     tickAnimations();
     EXPECT_EQ(FastLED.showCount, 0);
 }

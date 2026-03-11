@@ -35,7 +35,7 @@
 #define DEFAULT_WIFI_SSID       ""
 #define DEFAULT_WIFI_PASS       ""
 #define DEFAULT_HOLD_SEC        3.0f
-#define DEFAULT_ALERT_HOLD_SEC  0.5f
+#define DEFAULT_ALERT_HOLD_SEC  0.0f
 #define DEFAULT_FADE_SEC        0.5f
 
 #define FADE_STEP  3

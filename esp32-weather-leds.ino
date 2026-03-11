@@ -31,7 +31,7 @@
 #define DEFAULT_WIFI_SSID       ""
 #define DEFAULT_WIFI_PASS       ""
 #define DEFAULT_HOLD_SEC        3.0f     // seconds to hold on temperature color between flashes
-#define DEFAULT_ALERT_HOLD_SEC  0.5f     // seconds to hold at full alert color before fading back
+#define DEFAULT_ALERT_HOLD_SEC  0.0f     // seconds to hold at full alert color before fading back (0 = no hold)
 #define DEFAULT_FADE_SEC        0.5f     // seconds for one complete fade cycle
 
 // Runtime config (loaded from NVS, used everywhere)

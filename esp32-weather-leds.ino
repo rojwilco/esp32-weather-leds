@@ -56,8 +56,9 @@ float    cfg_fade_sec        = DEFAULT_FADE_SEC;
 #define COLOR_HEAT    CRGB(255, 140, 0)    // orange, distinct from hot red base
 #define COLOR_RAIN    CRGB(0,   200, 200)
 
-// Animation: blendAmt steps of 3 per tick; tick interval and hold duration are runtime-configurable.
-#define FADE_STEP  3
+// Animation: single-unit blend steps for perceptual smoothness at all brightness levels.
+// Tick interval is derived from cfg_fade_sec so total fade duration stays user-controlled.
+#define FADE_STEP  1
 
 Preferences prefs;
 WebServer   server(80);

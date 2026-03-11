@@ -38,7 +38,7 @@
 #define DEFAULT_ALERT_HOLD_SEC  0.0f
 #define DEFAULT_FADE_SEC        0.5f
 
-#define FADE_STEP  3
+#define FADE_STEP  1
 
 #define COLOR_FREEZE  CRGB(200, 200, 255)
 #define COLOR_HEAT    CRGB(255, 140, 0)

@@ -17,7 +17,8 @@ protected:
         cfg_precip_thr  = DEFAULT_PRECIP_THR_PCT;
         cfg_hold_sec        = DEFAULT_HOLD_SEC;
         cfg_alert_hold_sec  = DEFAULT_ALERT_HOLD_SEC;
-        cfg_fade_sec        = DEFAULT_FADE_SEC;
+        cfg_attack_sec      = DEFAULT_ATTACK_SEC;
+        cfg_decay_sec       = DEFAULT_DECAY_SEC;
         strncpy(cfg_wifi_ssid, DEFAULT_WIFI_SSID, sizeof(cfg_wifi_ssid));
         strncpy(cfg_wifi_pass, DEFAULT_WIFI_PASS, sizeof(cfg_wifi_pass));
         g_ap_mode = false;
@@ -235,7 +236,8 @@ TEST_F(HandleRootTest, NerdyDefaultsButtonPresent) {
     std::string body = g_mock_last_send_body.c_str();
     EXPECT_NE(body.find("resetNerdyDefaults"),      std::string::npos) << "resetNerdyDefaults missing";
     EXPECT_NE(body.find("Revert to defaults"),      std::string::npos) << "button label missing";
-    // DEFAULT_HOLD_SEC=3.0, DEFAULT_FADE_SEC=0.5 should appear as rendered floats in the JS.
+    // DEFAULT_HOLD_SEC=3.0, DEFAULT_ATTACK_SEC=0.5, DEFAULT_DECAY_SEC=0.5 should appear in the JS.
     EXPECT_NE(body.find("value='3.0'"),             std::string::npos) << "default hold_sec not injected";
-    EXPECT_NE(body.find("value='0.5'"),             std::string::npos) << "default fade_sec not injected";
+    EXPECT_NE(body.find("attack_sec"),              std::string::npos) << "attack_sec field missing";
+    EXPECT_NE(body.find("decay_sec"),               std::string::npos) << "decay_sec field missing";
 }

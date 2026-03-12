@@ -4,17 +4,24 @@
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-// Compute the fade tick interval for the current cfg_fade_sec, matching
-// tickAnimations() exactly.
-static unsigned long fadeIntervalMs() {
-    unsigned long ms = (unsigned long)(cfg_fade_sec * 1000.0f * FADE_STEP / 255.0f + 0.5f);
+// Compute the tick interval for the current phase (attack when fadeDir=+1,
+// decay when fadeDir=-1), matching tickAnimations() exactly.
+static unsigned long attackIntervalMs() {
+    unsigned long ms = (unsigned long)(cfg_attack_sec * 1000.0f * FADE_STEP / 255.0f + 0.5f);
     return ms < 1 ? 1 : ms;
+}
+static unsigned long decayIntervalMs() {
+    unsigned long ms = (unsigned long)(cfg_decay_sec * 1000.0f * FADE_STEP / 255.0f + 0.5f);
+    return ms < 1 ? 1 : ms;
+}
+static unsigned long currentIntervalMs() {
+    return (ledStates[0].fadeDir == 1) ? attackIntervalMs() : decayIntervalMs();
 }
 
 // Drive tickAnimations() forward by exactly one tick interval + 1 ms,
 // returning the blendAmt of LED 0 after the tick.
 static int advanceTick() {
-    g_mock_millis += fadeIntervalMs() + 1;
+    g_mock_millis += currentIntervalMs() + 1;
     tickAnimations();
     return ledStates[0].blendAmt;
 }
@@ -23,7 +30,7 @@ static int advanceTick() {
 // Returns the millis value when the hold phase ends.
 static unsigned long waitForHoldExpiry(unsigned long holdUntil) {
     while (g_mock_millis <= holdUntil) {
-        g_mock_millis += fadeIntervalMs() + 1;
+        g_mock_millis += currentIntervalMs() + 1;
         tickAnimations();
     }
     return g_mock_millis;
@@ -39,7 +46,8 @@ static void waitForAlertHoldExpiry(unsigned long alertHoldUntil) {
 // ── Parametric fixture ────────────────────────────────────────────────────────
 
 struct CycleParams {
-    float       fade_sec;
+    float       attack_sec;
+    float       decay_sec;
     float       alert_hold_sec;
     float       hold_sec;
     const char* name;
@@ -51,7 +59,8 @@ protected:
         const CycleParams& p = GetParam();
         g_mock_millis         = 0;
         cfg_num_leds          = 1;
-        cfg_fade_sec          = p.fade_sec;
+        cfg_attack_sec        = p.attack_sec;
+        cfg_decay_sec         = p.decay_sec;
         cfg_alert_hold_sec    = p.alert_hold_sec;
         cfg_hold_sec          = p.hold_sec;
         FastLED.resetShowCount();
@@ -102,12 +111,14 @@ protected:
 INSTANTIATE_TEST_SUITE_P(
     AnimCycles, AnimCycleTest,
     ::testing::Values(
-        CycleParams{0.5f,  0.0f, 3.0f,  "default"},
-        CycleParams{0.1f,  0.0f, 3.0f,  "fast_fade"},
-        CycleParams{2.0f,  0.0f, 3.0f,  "slow_fade"},
-        CycleParams{0.5f,  1.0f, 3.0f,  "with_alert_hold"},
-        CycleParams{0.5f,  0.0f, 0.5f,  "short_base_hold"},
-        CycleParams{0.25f, 0.5f, 5.0f,  "nerdy_combo"}
+        // attack_sec, decay_sec, alert_hold_sec, hold_sec, name
+        CycleParams{0.5f,  0.5f,  0.0f, 3.0f,  "default"},
+        CycleParams{0.1f,  0.1f,  0.0f, 3.0f,  "fast_fade"},
+        CycleParams{2.0f,  2.0f,  0.0f, 3.0f,  "slow_fade"},
+        CycleParams{0.5f,  0.5f,  1.0f, 3.0f,  "with_alert_hold"},
+        CycleParams{0.5f,  0.5f,  0.0f, 0.5f,  "short_base_hold"},
+        CycleParams{0.25f, 0.25f, 0.5f, 5.0f,  "nerdy_combo"},
+        CycleParams{0.1f,  2.0f,  0.0f, 3.0f,  "ping"}
     ),
     [](const ::testing::TestParamInfo<CycleParams>& info) {
         return info.param.name;
@@ -180,8 +191,8 @@ TEST_P(AnimCycleTest, BaseHoldSetAfterCycleEnd) {
             waitForAlertHoldExpiry(ledStates[0].alertHoldUntil);
         advanceTick();
     }
-    // One more tick drives blendAmt to 0 and sets holdUntil.
-    g_mock_millis += fadeIntervalMs() + 1;
+    // One more tick (decay phase) drives blendAmt to 0 and sets holdUntil.
+    g_mock_millis += decayIntervalMs() + 1;
     tickAnimations();
     unsigned long endTime = g_mock_millis;
 

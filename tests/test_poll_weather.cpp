@@ -37,7 +37,8 @@ protected:
         cfg_hot_temp   = DEFAULT_HOT_TEMP_F;
         cfg_hold_sec        = DEFAULT_HOLD_SEC;
         cfg_alert_hold_sec  = DEFAULT_ALERT_HOLD_SEC;
-        cfg_fade_sec        = DEFAULT_FADE_SEC;
+        cfg_attack_sec      = DEFAULT_ATTACK_SEC;
+        cfg_decay_sec       = DEFAULT_DECAY_SEC;
     }
 
     void setAllDays(float tempMax, float tempMin, float precip) {

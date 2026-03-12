@@ -140,8 +140,10 @@ select{width:100%%;box-sizing:border-box;background:#2a2a2a;color:#e0e0e0;border
 <input type="number" name="hold_sec" step="0.1" min="0.1" max="60" value="%.1f">
 <label>Alert hold (s) &mdash; pause at peak alert color before fading back</label>
 <input type="number" name="alert_hold_sec" step="0.1" min="0" max="10" value="%.1f">
-<label>Fade (s) &mdash; rising and falling edge duration of each flash</label>
-<input type="number" name="fade_sec" step="0.1" min="0.1" max="10" value="%.1f">
+<label>Attack (s) &mdash; time to rise from temperature to alert color</label>
+<input type="number" name="attack_sec" step="0.1" min="0.1" max="10" value="%.1f">
+<label>Decay (s) &mdash; time to fade back from alert to temperature color</label>
+<input type="number" name="decay_sec" step="0.1" min="0.1" max="10" value="%.1f">
 <div style="text-align:right;margin-top:.5em"><button type="button" onclick="resetNerdyDefaults()" style="background:#444;color:#aaa;font-size:.8em;padding:.3em .8em;border:none;border-radius:4px;cursor:pointer">Revert to defaults</button></div>
 </details>
 <br>
@@ -197,7 +199,8 @@ var initVals={};
 function resetNerdyDefaults(){
   document.querySelector('[name=hold_sec]').value='%.1f';
   document.querySelector('[name=alert_hold_sec]').value='%.1f';
-  document.querySelector('[name=fade_sec]').value='%.1f';
+  document.querySelector('[name=attack_sec]').value='%.1f';
+  document.querySelector('[name=decay_sec]').value='%.1f';
   document.getElementById('mainForm').dispatchEvent(new Event('input',{bubbles:true}));
 }
 function setLocStatus(m){document.getElementById('locStatus').textContent=m;}

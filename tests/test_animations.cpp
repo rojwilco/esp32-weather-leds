@@ -5,10 +5,14 @@
 
 class AnimationsTest : public ::testing::Test {
 protected:
-    // Compute the fade tick interval from the current cfg_fade_sec setting,
-    // matching the formula used by tickAnimations().
-    unsigned long fadeIntervalMs() const {
-        unsigned long ms = (unsigned long)(cfg_fade_sec * 1000.0f * FADE_STEP / 255.0f + 0.5f);
+    // Compute tick intervals from current cfg_attack_sec / cfg_decay_sec,
+    // matching the formulas used by tickAnimations().
+    unsigned long attackIntervalMs() const {
+        unsigned long ms = (unsigned long)(cfg_attack_sec * 1000.0f * FADE_STEP / 255.0f + 0.5f);
+        return ms < 1 ? 1 : ms;
+    }
+    unsigned long decayIntervalMs() const {
+        unsigned long ms = (unsigned long)(cfg_decay_sec * 1000.0f * FADE_STEP / 255.0f + 0.5f);
         return ms < 1 ? 1 : ms;
     }
 
@@ -17,7 +21,8 @@ protected:
         cfg_num_leds  = DEFAULT_NUM_LEDS;
         cfg_hold_sec       = DEFAULT_HOLD_SEC;
         cfg_alert_hold_sec = DEFAULT_ALERT_HOLD_SEC;
-        cfg_fade_sec       = DEFAULT_FADE_SEC;
+        cfg_attack_sec     = DEFAULT_ATTACK_SEC;
+        cfg_decay_sec      = DEFAULT_DECAY_SEC;
         FastLED.resetShowCount();
         for (int i = 0; i < MAX_LEDS; i++) {
             leds[i]               = CRGB(0, 0, 0);
@@ -42,8 +47,10 @@ protected:
         ledStates[i].alertHoldUntil = 0;
     }
 
+    // Default tick advances by attackIntervalMs+1 (suitable for rising-phase tests).
+    // Pass an explicit elapsedMs for tests in the falling phase.
     void tick(unsigned long elapsedMs = 0) {
-        g_mock_millis += elapsedMs ? elapsedMs : fadeIntervalMs() + 1;
+        g_mock_millis += elapsedMs ? elapsedMs : attackIntervalMs() + 1;
         tickAnimations();
     }
 };
@@ -84,7 +91,7 @@ TEST_F(AnimationsTest, FadeIntervalThrottlesUpdates) {
         "If less than the computed fade tick interval has elapsed since the last tick, "
         "the LED is not updated, preventing animation from running faster than intended.");
     makeActive(0);
-    g_mock_millis += 1;   // only 1 ms — below default fadeIntervalMs (~2ms)
+    g_mock_millis += 1;   // only 1 ms — below default attackIntervalMs (~2ms with FADE_STEP=1)
     tickAnimations();
     EXPECT_EQ(FastLED.showCount, 0);
 }
@@ -141,7 +148,7 @@ TEST_F(AnimationsTest, ReachingZeroRestartsHold) {
     ledStates[0].blendAmt = FADE_STEP;   // one step from zero
     ledStates[0].fadeDir  = -1;
     g_mock_millis = 10000;
-    unsigned long elapsed = fadeIntervalMs() + 1;
+    unsigned long elapsed = decayIntervalMs() + 1;   // falling phase uses decay interval
     g_mock_millis += elapsed;
     tickAnimations();
     EXPECT_EQ(ledStates[0].blendAmt, 0);
@@ -232,39 +239,87 @@ TEST_F(AnimationsTest, ShorterHoldSecSetsNearerHoldUntil) {
     ledStates[0].blendAmt = FADE_STEP;
     ledStates[0].fadeDir  = -1;
     g_mock_millis = 1000;
-    unsigned long elapsed = fadeIntervalMs() + 1;
+    unsigned long elapsed = decayIntervalMs() + 1;   // falling phase uses decay interval
     g_mock_millis += elapsed;
     tickAnimations();
     EXPECT_EQ(ledStates[0].holdUntil, 1000UL + elapsed + 500UL);
 }
 
-// Description: A faster cfg_fade_sec reduces the tick interval so the LED
-// updates on every eligible call rather than waiting the default ~6 ms.
-TEST_F(AnimationsTest, FasterFadeSecReducesTickInterval) {
+// Description: A faster cfg_attack_sec reduces the attack tick interval so the
+// LED rises from base to alert color faster than the default.
+TEST_F(AnimationsTest, FasterAttackSecReducesTickInterval) {
     RecordProperty("description",
-        "A faster cfg_fade_sec reduces the tick interval so the LED updates on "
-        "every eligible call rather than waiting the default ~6 ms.");
-    cfg_fade_sec = 0.1f;   // very short fade → tiny interval (~1 ms)
+        "A faster cfg_attack_sec reduces the attack tick interval so the LED "
+        "rises from base to alert color faster than the default.");
+    cfg_attack_sec = 0.1f;   // short attack → tiny interval (~1 ms)
     makeActive(0);
-    // Advance by exactly 1 ms — should be enough for a fast fade
+    // Advance by 2 ms — enough for the fast attack interval
     g_mock_millis += 2;
     tickAnimations();
     EXPECT_GT(ledStates[0].blendAmt, 0);   // animation advanced
 }
 
-// Description: A slower cfg_fade_sec increases the tick interval so the LED
-// does not advance within a small elapsed time.
-TEST_F(AnimationsTest, SlowerFadeSecIncreasesTickInterval) {
+// Description: A slower cfg_attack_sec increases the attack tick interval so
+// the LED does not advance within a small elapsed time.
+TEST_F(AnimationsTest, SlowerAttackSecIncreasesTickInterval) {
     RecordProperty("description",
-        "A slower cfg_fade_sec increases the tick interval so the LED does not "
-        "advance within a small elapsed time.");
-    cfg_fade_sec = 5.0f;   // slow fade → interval ≈ 59 ms
+        "A slower cfg_attack_sec increases the attack tick interval so the LED "
+        "does not advance within a small elapsed time.");
+    cfg_attack_sec = 5.0f;   // slow attack → interval ≈ 59 ms
     makeActive(0);
-    // Advance only 10 ms — below the ~59 ms interval for a 5 s fade
+    // Advance only 10 ms — below the ~59 ms interval for a 5 s attack
     g_mock_millis += 10;
     tickAnimations();
     EXPECT_EQ(ledStates[0].blendAmt, 0);   // not yet updated
     EXPECT_EQ(FastLED.showCount, 0);
+}
+
+// Description: A slower cfg_decay_sec increases the decay tick interval so
+// the LED does not advance during the falling phase within a small elapsed time.
+TEST_F(AnimationsTest, SlowerDecaySecIncreasesTickInterval) {
+    RecordProperty("description",
+        "A slower cfg_decay_sec increases the decay tick interval so the LED "
+        "does not advance during the falling phase within a small elapsed time.");
+    cfg_decay_sec = 5.0f;   // slow decay → interval ≈ 59 ms
+    makeActive(0);
+    ledStates[0].blendAmt = 255;
+    ledStates[0].fadeDir  = -1;
+    // Advance only 10 ms — below the ~59 ms interval for a 5 s decay
+    g_mock_millis += 10;
+    tickAnimations();
+    EXPECT_EQ(ledStates[0].blendAmt, 255);   // not yet updated
+    EXPECT_EQ(FastLED.showCount, 0);
+}
+
+// Description: Setting cfg_attack_sec and cfg_decay_sec to different values
+// makes the rising phase use the attack interval and the falling phase use the
+// decay interval, enabling asymmetric ping-style animations.
+TEST_F(AnimationsTest, AttackAndDecayCanDiffer) {
+    RecordProperty("description",
+        "Setting cfg_attack_sec and cfg_decay_sec to different values makes "
+        "the rising phase use the attack interval and the falling phase use the "
+        "decay interval, enabling asymmetric ping-style animations.");
+    cfg_attack_sec = 0.1f;   // fast attack: interval ~1 ms
+    cfg_decay_sec  = 2.0f;   // slow decay:  interval ~8 ms
+
+    makeActive(0);
+    // At 2 ms elapsed, fast attack should have fired
+    g_mock_millis += 2;
+    tickAnimations();
+    EXPECT_GT(ledStates[0].blendAmt, 0) << "attack should advance in 2 ms";
+
+    // Now put in falling phase and advance only 5 ms (less than decay interval ~8 ms)
+    ledStates[0].blendAmt = 255;
+    ledStates[0].fadeDir  = -1;
+    ledStates[0].lastTick = g_mock_millis;
+    g_mock_millis += 5;
+    tickAnimations();
+    EXPECT_EQ(ledStates[0].blendAmt, 255) << "decay should NOT advance in 5 ms";
+
+    // Advance by the full decay interval — now it should fire
+    g_mock_millis += decayIntervalMs() + 1;
+    tickAnimations();
+    EXPECT_LT(ledStates[0].blendAmt, 255) << "decay should advance after decay interval";
 }
 
 // Description: When blendAmt reaches 255, alertHoldUntil is set to
@@ -277,7 +332,7 @@ TEST_F(AnimationsTest, AlertHoldUntilSetWhenBlendPeaks) {
     ledStates[0].blendAmt = 255 - FADE_STEP;   // one step from peak
     ledStates[0].fadeDir  = 1;
     g_mock_millis = 2000;
-    unsigned long elapsed = fadeIntervalMs() + 1;
+    unsigned long elapsed = attackIntervalMs() + 1;   // rising phase uses attack interval
     g_mock_millis += elapsed;
     tickAnimations();
     EXPECT_EQ(ledStates[0].blendAmt, 255);
@@ -315,7 +370,7 @@ TEST_F(AnimationsTest, AlertHoldExpiryAllowsFadeOut) {
     ledStates[0].fadeDir        = -1;
     ledStates[0].alertHoldUntil = 500;
     g_mock_millis = 501;   // just past the alert hold
-    g_mock_millis += fadeIntervalMs() + 1;
+    g_mock_millis += decayIntervalMs() + 1;   // falling phase uses decay interval
     tickAnimations();
     EXPECT_LT(ledStates[0].blendAmt, 255);   // fade-out has started
 }

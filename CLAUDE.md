@@ -46,17 +46,22 @@ Latitude/longitude are also set via the web UI.
 
 `tickAnimations()` advances each alert LED by **1 blend unit per tick** (`FADE_STEP = 1`). Single-unit steps are required for perceptual smoothness: human vision is logarithmic (Weber-Fechner), so a step of 3/255 that looks smooth at full brightness becomes a visible staircase at low brightness. With step size 1, the fade is always smooth regardless of `cfg_brightness`.
 
-The tick interval is derived from `cfg_fade_sec` so that the total fade duration stays user-controlled:
+The attack (base→alert) and decay (alert→base) phases each have an independent tick interval derived from their duration setting:
 
 ```
-interval_ms = max(1, round(cfg_fade_sec × 1000 / 255))
+attack_interval_ms = max(1, round(cfg_attack_sec × 1000 / 255))   // rising phase
+decay_interval_ms  = max(1, round(cfg_decay_sec  × 1000 / 255))   // falling phase
 ```
 
-Total fade duration ≈ 255 steps × interval_ms ≈ `cfg_fade_sec` seconds.
+Total phase duration ≈ 255 steps × interval_ms ≈ `cfg_attack_sec` or `cfg_decay_sec` seconds.
 
-Example with the default `cfg_fade_sec = 0.5`:
+Example with the defaults `cfg_attack_sec = cfg_decay_sec = 0.5` (symmetric, identical to the old single `fade_sec`):
 - `interval_ms = round(0.5 × 1000 / 255 + 0.5) = round(2.46) = 2 ms`
-- 255 ticks × 2 ms = 510 ms ≈ 0.5 s per fade direction
+- 255 ticks × 2 ms = 510 ms ≈ 0.5 s per direction
+
+**Radar-ping example** (`cfg_attack_sec = 0.1`, `cfg_decay_sec = 2.0`):
+- Attack: `round(0.1 × 1000 / 255 + 0.5) = 1 ms` → snaps to alert color in ~255 ms
+- Decay: `round(2.0 × 1000 / 255 + 0.5) = 8 ms` → fades back slowly over ~2 s
 
 **Do not increase `FADE_STEP`** — doing so trades smoothness for a coarser interval and reintroduces visible stepping at low brightness.
 

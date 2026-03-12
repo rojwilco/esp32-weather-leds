@@ -237,7 +237,7 @@ TEST_F(HandleRootTest, NerdyDefaultsButtonPresent) {
     EXPECT_NE(body.find("resetNerdyDefaults"),      std::string::npos) << "resetNerdyDefaults missing";
     EXPECT_NE(body.find("Revert to defaults"),      std::string::npos) << "button label missing";
     // DEFAULT_HOLD_SEC=3.0, DEFAULT_ATTACK_SEC=0.5, DEFAULT_DECAY_SEC=0.5 should appear in the JS.
-    EXPECT_NE(body.find("value='3.0'"),             std::string::npos) << "default hold_sec not injected";
+    EXPECT_NE(body.find("value='3.00'"),            std::string::npos) << "default hold_sec not injected";
     EXPECT_NE(body.find("attack_sec"),              std::string::npos) << "attack_sec field missing";
     EXPECT_NE(body.find("decay_sec"),               std::string::npos) << "decay_sec field missing";
 }

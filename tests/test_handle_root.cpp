@@ -292,19 +292,23 @@ TEST_F(HandleRootTest, HexTextInputsPresent) {
     EXPECT_NE(body.find("placeholder=\"#rrggbb\""), std::string::npos) << "placeholder missing";
 }
 
-// Description: handleRoot() renders a pointerdown listener on each color picker
-// that nudges the value before the native dialog opens, working around the iOS
-// bug where the Custom Color view initialises its HSV sliders to zero.
-TEST_F(HandleRootTest, ColorPickerPointerdownNudgePresent) {
+// Description: handleRoot() renders a click listener on each color picker that
+// nudges both the IDL value and the content attribute before the native dialog
+// opens, working around the iOS/Android bug where the Custom Color view
+// initialises its HSV sliders to zero.
+TEST_F(HandleRootTest, ColorPickerClickNudgePresent) {
     RecordProperty("description",
-        "handleRoot() renders a pointerdown listener on each color picker that "
-        "nudges the value before the native dialog opens, working around the iOS "
-        "bug where the Custom Color view initialises its HSV sliders to zero.");
+        "handleRoot() renders a click listener on each color picker that nudges "
+        "both the IDL value and the content attribute before the native dialog "
+        "opens, working around the iOS/Android bug where the Custom Color view "
+        "initialises its HSV sliders to zero.");
     handleRoot();
     std::string body = g_mock_last_send_body.c_str();
-    EXPECT_NE(body.find("pointerdown"), std::string::npos) << "pointerdown listener missing";
-    // The nudge must toggle between #000000 and #000001 to force iOS re-read.
-    EXPECT_NE(body.find("#000001"),     std::string::npos) << "nudge value #000001 missing";
+    EXPECT_NE(body.find("'click'"),   std::string::npos) << "click listener missing";
+    EXPECT_NE(body.find("setAttribute"), std::string::npos) << "setAttribute call missing";
+    // The nudge must toggle through #000001 to force the browser to invalidate
+    // its cached colour state.
+    EXPECT_NE(body.find("#000001"),   std::string::npos) << "nudge value #000001 missing";
 }
 
 // Description: handleRoot() renders the syncColorHex JS function and wires it

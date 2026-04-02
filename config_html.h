@@ -222,13 +222,17 @@ document.querySelectorAll('input[type=color]').forEach(function(el){
   el.setAttribute('value',el.value);  // sync attr so native picker dialog initialises from current color
   syncColorHex(el);
   el.addEventListener('input',function(){syncColorHex(el);});
-  // iOS bug: Custom Color view opens with HSV sliders at 0 instead of reading the
-  // element's current value.  Nudging to a nearby colour and back synchronously in
-  // pointerdown (which fires before the picker opens) forces iOS to re-read the value.
-  el.addEventListener('pointerdown',function(){
+  // iOS/Android bug: the native "Custom Color" view opens with HSV sliders at 0
+  // instead of reflecting the element's current value.  Nudging the value (both
+  // the IDL property and the content attribute) synchronously inside the click
+  // handler — which runs before the browser's default action of opening the picker
+  // — forces the browser to invalidate any cached colour state and re-read the
+  // current value when the picker dialog is created.
+  el.addEventListener('click',function(){
     var v=el.value;
-    el.value=(v==='#000000')?'#000001':'#000000';
-    el.value=v;
+    var a=(v==='#000000')?'#000001':'#000000';
+    el.setAttribute('value',a);el.value=a;
+    el.setAttribute('value',v);el.value=v;
   });
   var hex=el.nextElementSibling;
   if(hex&&hex.classList.contains('clr-hex')){

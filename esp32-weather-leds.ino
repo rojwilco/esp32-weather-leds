@@ -34,6 +34,9 @@
 #define DEFAULT_ALERT_HOLD_SEC  0.0f     // seconds to hold at full alert color before fading back (0 = no hold)
 #define DEFAULT_ATTACK_SEC      0.5f     // rise time: base → alert color
 #define DEFAULT_DECAY_SEC       0.5f     // fall time: alert → base color
+#define DEFAULT_FREEZE_COLOR    0xC8C8FFU  // icy white-blue, distinct from cold blue base
+#define DEFAULT_HEAT_COLOR      0xFF8C00U  // orange, distinct from hot red base
+#define DEFAULT_RAIN_COLOR      0x00C8C8U  // cyan
 
 // Runtime config (loaded from NVS, used everywhere)
 uint8_t  cfg_num_leds   = DEFAULT_NUM_LEDS;
@@ -52,11 +55,9 @@ float    cfg_hold_sec        = DEFAULT_HOLD_SEC;
 float    cfg_alert_hold_sec  = DEFAULT_ALERT_HOLD_SEC;
 float    cfg_attack_sec      = DEFAULT_ATTACK_SEC;
 float    cfg_decay_sec       = DEFAULT_DECAY_SEC;
-
-// Alert colors
-#define COLOR_FREEZE  CRGB(200, 200, 255)  // icy white-blue, distinct from cold blue base
-#define COLOR_HEAT    CRGB(255, 140, 0)    // orange, distinct from hot red base
-#define COLOR_RAIN    CRGB(0,   200, 200)
+uint32_t cfg_freeze_color = DEFAULT_FREEZE_COLOR;
+uint32_t cfg_heat_color   = DEFAULT_HEAT_COLOR;
+uint32_t cfg_rain_color   = DEFAULT_RAIN_COLOR;
 
 // Animation: single-unit blend steps for perceptual smoothness at all brightness levels.
 // Tick interval is derived from cfg_attack_sec / cfg_decay_sec so phase durations stay user-controlled.
@@ -114,6 +115,9 @@ void loadConfig() {
   cfg_alert_hold_sec  = prefs.getFloat("alert_hold_sec", DEFAULT_ALERT_HOLD_SEC);
   cfg_attack_sec      = prefs.getFloat("attack_sec",     DEFAULT_ATTACK_SEC);
   cfg_decay_sec       = prefs.getFloat("decay_sec",      DEFAULT_DECAY_SEC);
+  cfg_freeze_color    = prefs.getUInt("freeze_clr",  DEFAULT_FREEZE_COLOR);
+  cfg_heat_color      = prefs.getUInt("heat_clr",    DEFAULT_HEAT_COLOR);
+  cfg_rain_color      = prefs.getUInt("rain_clr",    DEFAULT_RAIN_COLOR);
   prefs.end();
   Serial.printf("Config: leds=%d brt=%d poll=%dmin cold=%.1f hot=%.1f lat=%s lon=%s ssid=%s hold=%.2fs ahld=%.2fs atk=%.2fs dcy=%.2fs\n",
                 cfg_num_leds, cfg_brightness, cfg_poll_min, cfg_cold_temp, cfg_hot_temp,
@@ -138,6 +142,9 @@ void saveConfig() {
   prefs.putFloat("alert_hold_sec", cfg_alert_hold_sec);
   prefs.putFloat("attack_sec",     cfg_attack_sec);
   prefs.putFloat("decay_sec",      cfg_decay_sec);
+  prefs.putUInt("freeze_clr",  cfg_freeze_color);
+  prefs.putUInt("heat_clr",    cfg_heat_color);
+  prefs.putUInt("rain_clr",    cfg_rain_color);
   prefs.end();
 }
 
@@ -229,13 +236,13 @@ void pollWeather() {
       CRGB alertColor;
       if (forecast[i].precipProb >= cfg_precip_thr) {
         alert      = ALERT_RAIN;
-        alertColor = COLOR_RAIN;
+        alertColor = CRGB((cfg_rain_color >> 16) & 0xFF, (cfg_rain_color >> 8) & 0xFF, cfg_rain_color & 0xFF);
       } else if (forecast[i].tempMin <= cfg_freeze_thr) {
         alert      = ALERT_FREEZE;
-        alertColor = COLOR_FREEZE;
+        alertColor = CRGB((cfg_freeze_color >> 16) & 0xFF, (cfg_freeze_color >> 8) & 0xFF, cfg_freeze_color & 0xFF);
       } else if (forecast[i].tempMax >= cfg_heat_thr) {
         alert      = ALERT_HEAT;
-        alertColor = COLOR_HEAT;
+        alertColor = CRGB((cfg_heat_color >> 16) & 0xFF, (cfg_heat_color >> 8) & 0xFF, cfg_heat_color & 0xFF);
       } else {
         alert      = ALERT_NONE;
         alertColor = CRGB::Black;
@@ -360,22 +367,37 @@ void startAPMode() {
 }
 
 void handleRoot() {
-  static char page[13312];
+  static char page[15360];
   String ip = g_ap_mode ? WiFi.softAPIP().toString() : WiFi.localIP().toString();
   const char* stationDisplay = g_ap_mode ? "none" : "block";
+  // Format 24-bit RGB as #rrggbb (always 7 chars + NUL = 8 bytes).
+  // Mask to 24 bits before formatting to keep the value in range.
+  char freezeColorHex[8], heatColorHex[8], rainColorHex[8];
+  snprintf(freezeColorHex, sizeof(freezeColorHex), "#%06x", (unsigned)(cfg_freeze_color & 0xFFFFFFU));
+  snprintf(heatColorHex,   sizeof(heatColorHex),   "#%06x", (unsigned)(cfg_heat_color   & 0xFFFFFFU));
+  snprintf(rainColorHex,   sizeof(rainColorHex),   "#%06x", (unsigned)(cfg_rain_color   & 0xFFFFFFU));
+  char dfltFreezeHex[8], dfltHeatHex[8], dfltRainHex[8];
+  snprintf(dfltFreezeHex, sizeof(dfltFreezeHex), "#%06x", (unsigned)(DEFAULT_FREEZE_COLOR & 0xFFFFFFU));
+  snprintf(dfltHeatHex,   sizeof(dfltHeatHex),   "#%06x", (unsigned)(DEFAULT_HEAT_COLOR   & 0xFFFFFFU));
+  snprintf(dfltRainHex,   sizeof(dfltRainHex),   "#%06x", (unsigned)(DEFAULT_RAIN_COLOR   & 0xFFFFFFU));
   snprintf(page, sizeof(page), CONFIG_HTML,
            g_ap_mode ? "block" : "none",  // AP setup banner
            stationDisplay,                 // main-cfg section (hidden in AP mode)
            cfg_brightness, cfg_poll_min, cfg_num_leds,
            cfg_cold_temp, cfg_hot_temp,
            cfg_latitude, cfg_longitude,
-           cfg_freeze_thr, cfg_heat_thr, cfg_precip_thr,
-           cfg_hold_sec, cfg_alert_hold_sec, cfg_attack_sec, cfg_decay_sec,  // nerdy settings section
-           cfg_wifi_ssid,                  // SSID field (now at bottom of form)
+           cfg_freeze_thr, freezeColorHex,     // nerdy: freeze threshold + color
+           cfg_heat_thr,   heatColorHex,        // nerdy: heat threshold + color
+           cfg_precip_thr, rainColorHex,        // nerdy: precip threshold + rain color
+           cfg_hold_sec, cfg_alert_hold_sec, cfg_attack_sec, cfg_decay_sec,  // nerdy: timing
+           cfg_wifi_ssid,                  // SSID field
            stationDisplay,                 // station-only section (poll + OTA)
            FIRMWARE_VERSION, FIRMWARE_BUILD_TIMESTAMP,
            ip.c_str(),
-           DEFAULT_HOLD_SEC, DEFAULT_ALERT_HOLD_SEC, DEFAULT_ATTACK_SEC, DEFAULT_DECAY_SEC);  // nerdy defaults for reset JS
+           DEFAULT_HOLD_SEC, DEFAULT_ALERT_HOLD_SEC, DEFAULT_ATTACK_SEC, DEFAULT_DECAY_SEC,  // timing defaults for reset JS
+           DEFAULT_FREEZE_THR_F, dfltFreezeHex,   // threshold/color defaults for reset JS
+           DEFAULT_HEAT_THR_F,   dfltHeatHex,
+           DEFAULT_PRECIP_THR_PCT, dfltRainHex);
   server.send(200, "text/html", page);
 }
 
@@ -403,6 +425,24 @@ void handleSave() {
     cfg_heat_thr   = server.arg("heat_thr").toFloat();
   if (server.hasArg("precip_thr"))
     cfg_precip_thr = server.arg("precip_thr").toFloat();
+  if (server.hasArg("freeze_color")) {
+    String c = server.arg("freeze_color");
+    if (c.length() == 7 && c.c_str()[0] == '#') {
+      uint32_t v; if (sscanf(c.c_str(), "#%06x", &v) == 1) cfg_freeze_color = v;
+    }
+  }
+  if (server.hasArg("heat_color")) {
+    String c = server.arg("heat_color");
+    if (c.length() == 7 && c.c_str()[0] == '#') {
+      uint32_t v; if (sscanf(c.c_str(), "#%06x", &v) == 1) cfg_heat_color = v;
+    }
+  }
+  if (server.hasArg("rain_color")) {
+    String c = server.arg("rain_color");
+    if (c.length() == 7 && c.c_str()[0] == '#') {
+      uint32_t v; if (sscanf(c.c_str(), "#%06x", &v) == 1) cfg_rain_color = v;
+    }
+  }
   if (server.hasArg("hold_sec"))
     cfg_hold_sec = constrain(server.arg("hold_sec").toFloat(), 0.1f, 60.0f);
   if (server.hasArg("alert_hold_sec"))

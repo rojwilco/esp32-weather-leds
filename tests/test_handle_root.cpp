@@ -19,6 +19,9 @@ protected:
         cfg_alert_hold_sec  = DEFAULT_ALERT_HOLD_SEC;
         cfg_attack_sec      = DEFAULT_ATTACK_SEC;
         cfg_decay_sec       = DEFAULT_DECAY_SEC;
+        cfg_freeze_color    = DEFAULT_FREEZE_COLOR;
+        cfg_heat_color      = DEFAULT_HEAT_COLOR;
+        cfg_rain_color      = DEFAULT_RAIN_COLOR;
         strncpy(cfg_wifi_ssid, DEFAULT_WIFI_SSID, sizeof(cfg_wifi_ssid));
         strncpy(cfg_wifi_pass, DEFAULT_WIFI_PASS, sizeof(cfg_wifi_pass));
         g_ap_mode = false;
@@ -240,4 +243,48 @@ TEST_F(HandleRootTest, NerdyDefaultsButtonPresent) {
     EXPECT_NE(body.find("value='3.00'"),            std::string::npos) << "default hold_sec not injected";
     EXPECT_NE(body.find("attack_sec"),              std::string::npos) << "attack_sec field missing";
     EXPECT_NE(body.find("decay_sec"),               std::string::npos) << "decay_sec field missing";
+}
+
+// Description: handleRoot() renders color picker inputs for freeze, heat, and
+// rain alert colors inside Nerdy Settings so the user can customize flash colors.
+TEST_F(HandleRootTest, AlertColorPickersPresent) {
+    RecordProperty("description",
+        "handleRoot() renders color picker inputs for freeze, heat, and rain alert "
+        "colors inside Nerdy Settings so the user can customize flash colors.");
+    handleRoot();
+    std::string body = g_mock_last_send_body.c_str();
+    EXPECT_NE(body.find("name=\"freeze_color\""), std::string::npos) << "freeze_color picker missing";
+    EXPECT_NE(body.find("name=\"heat_color\""),   std::string::npos) << "heat_color picker missing";
+    EXPECT_NE(body.find("name=\"rain_color\""),   std::string::npos) << "rain_color picker missing";
+    EXPECT_NE(body.find("type=\"color\""),        std::string::npos) << "no color input type found";
+}
+
+// Description: handleRoot() injects the current cfg_freeze_color, cfg_heat_color,
+// and cfg_rain_color values as hex strings so the color pickers show the saved colors.
+TEST_F(HandleRootTest, AlertColorValuesInjected) {
+    RecordProperty("description",
+        "handleRoot() injects the current cfg_freeze_color, cfg_heat_color, and "
+        "cfg_rain_color values as hex strings so the color pickers show the saved colors.");
+    cfg_freeze_color = 0xFF0000U;  // red
+    cfg_heat_color   = 0x00FF00U;  // green
+    cfg_rain_color   = 0x0000FFU;  // blue
+    handleRoot();
+    std::string body = g_mock_last_send_body.c_str();
+    EXPECT_NE(body.find("#ff0000"), std::string::npos) << "freeze color hex not injected";
+    EXPECT_NE(body.find("#00ff00"), std::string::npos) << "heat color hex not injected";
+    EXPECT_NE(body.find("#0000ff"), std::string::npos) << "rain color hex not injected";
+}
+
+// Description: handleRoot() renders a resetThresholdDefaults() JS function with
+// "Reset to defaults" button so alert thresholds and colors can be restored at once.
+TEST_F(HandleRootTest, ThresholdResetButtonPresent) {
+    RecordProperty("description",
+        "handleRoot() renders a resetThresholdDefaults() JS function with "
+        "\"Reset to defaults\" button so alert thresholds and colors can be restored at once.");
+    handleRoot();
+    std::string body = g_mock_last_send_body.c_str();
+    EXPECT_NE(body.find("resetThresholdDefaults"), std::string::npos) << "resetThresholdDefaults missing";
+    EXPECT_NE(body.find("Reset to defaults"),       std::string::npos) << "Reset to defaults button missing";
+    // DEFAULT_FREEZE_COLOR = 0xC8C8FF → "#c8c8ff" should appear in the JS reset body.
+    EXPECT_NE(body.find("#c8c8ff"), std::string::npos) << "default freeze color hex not in reset JS";
 }

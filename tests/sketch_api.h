@@ -38,12 +38,11 @@
 #define DEFAULT_ALERT_HOLD_SEC  0.0f
 #define DEFAULT_ATTACK_SEC      0.5f
 #define DEFAULT_DECAY_SEC       0.5f
+#define DEFAULT_FREEZE_COLOR    0xC8C8FFU
+#define DEFAULT_HEAT_COLOR      0xFF8C00U
+#define DEFAULT_RAIN_COLOR      0x00C8C8U
 
 #define FADE_STEP  1
-
-#define COLOR_FREEZE  CRGB(200, 200, 255)
-#define COLOR_HEAT    CRGB(255, 140, 0)
-#define COLOR_RAIN    CRGB(0,   200, 200)
 
 // ── Sketch types ─────────────────────────────────────────────────────────────
 struct DayForecast {
@@ -83,6 +82,9 @@ extern float    cfg_hold_sec;
 extern float    cfg_alert_hold_sec;
 extern float    cfg_attack_sec;
 extern float    cfg_decay_sec;
+extern uint32_t cfg_freeze_color;
+extern uint32_t cfg_heat_color;
+extern uint32_t cfg_rain_color;
 extern CRGB     leds[MAX_LEDS];
 extern LEDState ledStates[MAX_LEDS];
 extern bool     g_forceRepoll;

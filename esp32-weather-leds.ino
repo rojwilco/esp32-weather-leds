@@ -367,7 +367,7 @@ void startAPMode() {
 }
 
 void handleRoot() {
-  static char page[15360];
+  static char page[17408];
   String ip = g_ap_mode ? WiFi.softAPIP().toString() : WiFi.localIP().toString();
   const char* stationDisplay = g_ap_mode ? "none" : "block";
   // Format 24-bit RGB as #rrggbb (always 7 chars + NUL = 8 bytes).

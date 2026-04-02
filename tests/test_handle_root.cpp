@@ -285,7 +285,7 @@ TEST_F(HandleRootTest, HexTextInputsPresent) {
     std::string body = g_mock_last_send_body.c_str();
     // Count occurrences of class="clr-hex" — expect exactly three (freeze, heat, rain).
     size_t count = 0, pos = 0;
-    while ((pos = body.find("clr-hex", pos)) != std::string::npos) { ++count; ++pos; }
+    while ((pos = body.find("class=\"clr-hex\"", pos)) != std::string::npos) { ++count; ++pos; }
     EXPECT_EQ(count, 3u) << "expected 3 clr-hex inputs, got " << count;
     EXPECT_NE(body.find("type=\"text\""),           std::string::npos) << "no text input found";
     EXPECT_NE(body.find("maxlength=\"7\""),         std::string::npos) << "maxlength=\"7\" missing";

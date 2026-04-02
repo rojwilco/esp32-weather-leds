@@ -25,7 +25,8 @@ select{width:100%%;box-sizing:border-box;background:#2a2a2a;color:#e0e0e0;border
 .thr-row{display:flex;gap:.5em;align-items:center;margin-top:.5em}
 .thr-row input[type=number]{flex:1;min-width:0;padding:.4em;font-size:1em;background:#2a2a2a;color:#e0e0e0;border:1px solid #444;border-radius:4px;box-sizing:border-box}
 .thr-row input[type=color]{width:2.5em;height:2.2em;padding:2px;border-radius:4px;cursor:pointer;border:1px solid #444;background:#2a2a2a;flex-shrink:0}
-.clr-hex{font-size:.8em;color:#aaa;font-family:monospace;min-width:4.5em}
+input.clr-hex{width:5.2em;font-size:.85em;font-family:monospace;padding:.3em .4em;background:#2a2a2a;color:#e0e0e0;border:1px solid #444;border-radius:4px;box-sizing:border-box;flex-shrink:0}
+input.clr-hex.invalid{border-color:#a04040}
 </style>
 </head><body>
 <h1>⛅ Weather LEDs Config</h1>
@@ -139,17 +140,17 @@ select{width:100%%;box-sizing:border-box;background:#2a2a2a;color:#e0e0e0;border
 <label>Freeze threshold &deg;F &mdash; alert when min temp &le; this</label>
 <div class="thr-row">
 <input type="number" name="freeze_thr" step="0.1" value="%.1f">
-<input type="color" name="freeze_color" value="%s"><span class="clr-hex"></span>
+<input type="color" name="freeze_color" value="%s"><input type="text" class="clr-hex" maxlength="7" spellcheck="false" placeholder="#rrggbb">
 </div>
 <label>Heat threshold &deg;F &mdash; alert when max temp &ge; this</label>
 <div class="thr-row">
 <input type="number" name="heat_thr" step="0.1" value="%.1f">
-<input type="color" name="heat_color" value="%s"><span class="clr-hex"></span>
+<input type="color" name="heat_color" value="%s"><input type="text" class="clr-hex" maxlength="7" spellcheck="false" placeholder="#rrggbb">
 </div>
 <label>Precipitation threshold %% &mdash; alert when precip prob &ge; this</label>
 <div class="thr-row">
 <input type="number" name="precip_thr" step="0.1" min="0" max="100" value="%.1f">
-<input type="color" name="rain_color" value="%s"><span class="clr-hex"></span>
+<input type="color" name="rain_color" value="%s"><input type="text" class="clr-hex" maxlength="7" spellcheck="false" placeholder="#rrggbb">
 </div>
 <div style="text-align:right;margin-top:.5em"><button type="button" onclick="resetThresholdDefaults()" style="background:#444;color:#aaa;font-size:.8em;padding:.3em .8em;border:none;border-radius:4px;cursor:pointer">Reset to defaults</button></div>
 <label style="margin-top:1.2em;font-size:.85em;color:#777;text-transform:uppercase;letter-spacing:.06em">Animation timing</label>
@@ -213,11 +214,25 @@ var initVals={};
     document.getElementById('saveBtn').classList.toggle('dirty',dirty);
   });
 })();
+function syncColorHex(picker){
+  var hex=picker.nextElementSibling;
+  if(hex&&hex.classList.contains('clr-hex'))hex.value=picker.value;
+}
 document.querySelectorAll('input[type=color]').forEach(function(el){
-  var span=el.nextElementSibling;
-  if(span&&span.classList.contains('clr-hex')){
-    span.textContent=el.value;
-    el.addEventListener('input',function(){span.textContent=el.value;});
+  syncColorHex(el);
+  el.addEventListener('input',function(){syncColorHex(el);});
+  var hex=el.nextElementSibling;
+  if(hex&&hex.classList.contains('clr-hex')){
+    hex.addEventListener('input',function(){
+      hex.classList.toggle('invalid',!/^#[0-9a-fA-F]{6}$/.test(hex.value));
+      if(/^#[0-9a-fA-F]{6}$/.test(hex.value)){
+        el.value=hex.value;
+        el.dispatchEvent(new Event('input',{bubbles:true}));
+      }
+    });
+    hex.addEventListener('change',function(){
+      if(!/^#[0-9a-fA-F]{6}$/.test(hex.value)){hex.value=el.value;hex.classList.remove('invalid');}
+    });
   }
 });
 function resetNerdyDefaults(){
@@ -229,11 +244,11 @@ function resetNerdyDefaults(){
 }
 function resetThresholdDefaults(){
   document.querySelector('[name=freeze_thr]').value='%.1f';
-  document.querySelector('[name=freeze_color]').value='%s';
+  var fc=document.querySelector('[name=freeze_color]');fc.value='%s';syncColorHex(fc);
   document.querySelector('[name=heat_thr]').value='%.1f';
-  document.querySelector('[name=heat_color]').value='%s';
+  var hc=document.querySelector('[name=heat_color]');hc.value='%s';syncColorHex(hc);
   document.querySelector('[name=precip_thr]').value='%.1f';
-  document.querySelector('[name=rain_color]').value='%s';
+  var rc=document.querySelector('[name=rain_color]');rc.value='%s';syncColorHex(rc);
   document.getElementById('mainForm').dispatchEvent(new Event('input',{bubbles:true}));
 }
 function setLocStatus(m){document.getElementById('locStatus').textContent=m;}

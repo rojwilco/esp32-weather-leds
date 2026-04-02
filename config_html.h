@@ -21,6 +21,7 @@ select{width:100%%;box-sizing:border-box;background:#2a2a2a;color:#e0e0e0;border
 .locrow input,.locrow .btn{margin-top:0}
 .loc{background:#3a5a7a;color:#fff;border:none;border-radius:4px;white-space:nowrap;padding:.4em .8em;font-size:1em;cursor:pointer}
 .locstatus{font-size:.8em;color:#aaa;margin-top:.4em;min-height:1.2em}
+@media(max-width:480px){.loc-zone{grid-template-columns:1fr auto}.loc-zone select{grid-column:1/-1}}
 </style>
 </head><body>
 <h1>⛅ Weather LEDs Config</h1>
@@ -38,7 +39,7 @@ select{width:100%%;box-sizing:border-box;background:#2a2a2a;color:#e0e0e0;border
 <label>Hot temperature &deg;F (red end)</label>
 <input type="number" name="hot_temp" step="0.1" value="%.1f">
 <label>Location</label>
-<div class="locrow">
+<div class="locrow loc-zone">
 <select id="countrySelect">
 <option value="AD">AD – Andorra</option>
 <option value="AS">AS – American Samoa</option>

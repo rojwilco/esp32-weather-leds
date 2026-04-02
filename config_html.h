@@ -219,6 +219,7 @@ function syncColorHex(picker){
   if(hex&&hex.classList.contains('clr-hex'))hex.value=picker.value;
 }
 document.querySelectorAll('input[type=color]').forEach(function(el){
+  el.setAttribute('value',el.value);  // sync attr so native picker dialog initialises from current color
   syncColorHex(el);
   el.addEventListener('input',function(){syncColorHex(el);});
   var hex=el.nextElementSibling;
@@ -226,6 +227,7 @@ document.querySelectorAll('input[type=color]').forEach(function(el){
     hex.addEventListener('input',function(){
       hex.classList.toggle('invalid',!/^#[0-9a-fA-F]{6}$/.test(hex.value));
       if(/^#[0-9a-fA-F]{6}$/.test(hex.value)){
+        el.setAttribute('value',hex.value);  // keep attr in sync so native picker shows current color
         el.value=hex.value;
         el.dispatchEvent(new Event('input',{bubbles:true}));
       }
@@ -244,11 +246,11 @@ function resetNerdyDefaults(){
 }
 function resetThresholdDefaults(){
   document.querySelector('[name=freeze_thr]').value='%.1f';
-  var fc=document.querySelector('[name=freeze_color]');fc.value='%s';syncColorHex(fc);
+  var fc=document.querySelector('[name=freeze_color]'),fv='%s';fc.setAttribute('value',fv);fc.value=fv;syncColorHex(fc);
   document.querySelector('[name=heat_thr]').value='%.1f';
-  var hc=document.querySelector('[name=heat_color]');hc.value='%s';syncColorHex(hc);
+  var hc=document.querySelector('[name=heat_color]'),hv='%s';hc.setAttribute('value',hv);hc.value=hv;syncColorHex(hc);
   document.querySelector('[name=precip_thr]').value='%.1f';
-  var rc=document.querySelector('[name=rain_color]');rc.value='%s';syncColorHex(rc);
+  var rc=document.querySelector('[name=rain_color]'),rv='%s';rc.setAttribute('value',rv);rc.value=rv;syncColorHex(rc);
   document.getElementById('mainForm').dispatchEvent(new Event('input',{bubbles:true}));
 }
 function setLocStatus(m){document.getElementById('locStatus').textContent=m;}

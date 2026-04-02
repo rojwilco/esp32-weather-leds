@@ -458,3 +458,63 @@ TEST_F(HandleSaveTest, AlertColorsPersistedToNvs) {
     EXPECT_EQ(std::stoul(g_mock_prefs_store["heat_clr"]),   0xFF8C00U);
     EXPECT_EQ(std::stoul(g_mock_prefs_store["rain_clr"]),   0x00C8C8U);
 }
+
+// Description: Changing freeze_thr sets g_forceRepoll so the new threshold
+// takes effect on the LEDs immediately without waiting for the next scheduled poll.
+TEST_F(HandleSaveTest, ChangedFreezeThrSetsRepoll) {
+    RecordProperty("description",
+        "Changing freeze_thr sets g_forceRepoll so the new threshold takes effect "
+        "on the LEDs immediately without waiting for the next scheduled poll.");
+    g_mock_server_args["freeze_thr"] = "28.0";  // different from DEFAULT_FREEZE_THR_F (32)
+    handleSave();
+    EXPECT_TRUE(g_forceRepoll);
+}
+
+// Description: Changing heat_thr sets g_forceRepoll so the updated threshold
+// is reflected on the LEDs immediately.
+TEST_F(HandleSaveTest, ChangedHeatThrSetsRepoll) {
+    RecordProperty("description",
+        "Changing heat_thr sets g_forceRepoll so the updated threshold is "
+        "reflected on the LEDs immediately.");
+    g_mock_server_args["heat_thr"] = "100.0";  // different from DEFAULT_HEAT_THR_F (95)
+    handleSave();
+    EXPECT_TRUE(g_forceRepoll);
+}
+
+// Description: Changing precip_thr sets g_forceRepoll so the updated
+// precipitation threshold takes effect on the LEDs immediately.
+TEST_F(HandleSaveTest, ChangedPrecipThrSetsRepoll) {
+    RecordProperty("description",
+        "Changing precip_thr sets g_forceRepoll so the updated precipitation "
+        "threshold takes effect on the LEDs immediately.");
+    g_mock_server_args["precip_thr"] = "70.0";  // different from DEFAULT_PRECIP_THR_PCT (50)
+    handleSave();
+    EXPECT_TRUE(g_forceRepoll);
+}
+
+// Description: Changing an alert color sets g_forceRepoll so the LED flash
+// color updates immediately without waiting for the next scheduled poll.
+TEST_F(HandleSaveTest, ChangedAlertColorSetsRepoll) {
+    RecordProperty("description",
+        "Changing an alert color sets g_forceRepoll so the LED flash color "
+        "updates immediately without waiting for the next scheduled poll.");
+    g_mock_server_args["freeze_color"] = "#ff0000";  // different from default
+    handleSave();
+    EXPECT_TRUE(g_forceRepoll);
+}
+
+// Description: Submitting the same threshold and color values that are already
+// configured does not set g_forceRepoll, avoiding a redundant weather fetch.
+TEST_F(HandleSaveTest, UnchangedThresholdAndColorNoRepoll) {
+    RecordProperty("description",
+        "Submitting the same threshold and color values that are already configured "
+        "does not set g_forceRepoll, avoiding a redundant weather fetch.");
+    g_mock_server_args["freeze_thr"]   = std::to_string(DEFAULT_FREEZE_THR_F);
+    g_mock_server_args["heat_thr"]     = std::to_string(DEFAULT_HEAT_THR_F);
+    g_mock_server_args["precip_thr"]   = std::to_string(DEFAULT_PRECIP_THR_PCT);
+    g_mock_server_args["freeze_color"] = "#c8c8ff";
+    g_mock_server_args["heat_color"]   = "#ff8c00";
+    g_mock_server_args["rain_color"]   = "#00c8c8";
+    handleSave();
+    EXPECT_FALSE(g_forceRepoll);
+}

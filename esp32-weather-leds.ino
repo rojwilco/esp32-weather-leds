@@ -419,6 +419,13 @@ void handleSave() {
     cfg_hot_temp  = server.arg("hot_temp").toFloat();
   if (cfg_cold_temp >= cfg_hot_temp)
     cfg_hot_temp = cfg_cold_temp + 1.0f;
+  float    prev_freeze_thr   = cfg_freeze_thr;
+  float    prev_heat_thr     = cfg_heat_thr;
+  float    prev_precip_thr   = cfg_precip_thr;
+  uint32_t prev_freeze_color = cfg_freeze_color;
+  uint32_t prev_heat_color   = cfg_heat_color;
+  uint32_t prev_rain_color   = cfg_rain_color;
+
   if (server.hasArg("freeze_thr"))
     cfg_freeze_thr = server.arg("freeze_thr").toFloat();
   if (server.hasArg("heat_thr"))
@@ -443,6 +450,10 @@ void handleSave() {
       uint32_t v; if (sscanf(c.c_str(), "#%06x", &v) == 1) cfg_rain_color = v;
     }
   }
+  if (cfg_freeze_thr   != prev_freeze_thr   || cfg_heat_thr   != prev_heat_thr   ||
+      cfg_precip_thr   != prev_precip_thr   || cfg_freeze_color != prev_freeze_color ||
+      cfg_heat_color   != prev_heat_color   || cfg_rain_color   != prev_rain_color)
+    g_forceRepoll = true;
   if (server.hasArg("hold_sec"))
     cfg_hold_sec = constrain(server.arg("hold_sec").toFloat(), 0.1f, 60.0f);
   if (server.hasArg("alert_hold_sec"))

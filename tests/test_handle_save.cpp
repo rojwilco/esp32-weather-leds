@@ -19,6 +19,9 @@ protected:
         cfg_alert_hold_sec  = DEFAULT_ALERT_HOLD_SEC;
         cfg_attack_sec      = DEFAULT_ATTACK_SEC;
         cfg_decay_sec       = DEFAULT_DECAY_SEC;
+        cfg_freeze_color    = DEFAULT_FREEZE_COLOR;
+        cfg_heat_color      = DEFAULT_HEAT_COLOR;
+        cfg_rain_color      = DEFAULT_RAIN_COLOR;
         strncpy(cfg_wifi_ssid, DEFAULT_WIFI_SSID, sizeof(cfg_wifi_ssid));
         strncpy(cfg_wifi_pass, DEFAULT_WIFI_PASS, sizeof(cfg_wifi_pass));
         g_forceRepoll    = false;
@@ -373,8 +376,8 @@ TEST_F(HandleSaveTest, AlertHoldSecAcceptsFloat) {
     EXPECT_FLOAT_EQ(cfg_alert_hold_sec, 0.75f);
 }
 
-// Description: The hold_sec, attack_sec, and decay_sec values are written to
-// NVS so they survive a device reboot and are restored by loadConfig().
+// Description: The hold_sec, attack_sec, decay_sec, and alert_hold_sec values
+// are written to NVS so they survive a device reboot and are restored by loadConfig().
 TEST_F(HandleSaveTest, AnimTimingPersistedToNvs) {
     RecordProperty("description",
         "The hold_sec, attack_sec, and decay_sec values are written to NVS so "
@@ -392,4 +395,126 @@ TEST_F(HandleSaveTest, AnimTimingPersistedToNvs) {
     EXPECT_FLOAT_EQ(std::stof(g_mock_prefs_store["alert_hold_sec"]), 0.3f);
     EXPECT_FLOAT_EQ(std::stof(g_mock_prefs_store["attack_sec"]),     0.2f);
     EXPECT_FLOAT_EQ(std::stof(g_mock_prefs_store["decay_sec"]),      1.5f);
+}
+
+// Description: Submitting a valid '#rrggbb' freeze_color hex string updates
+// cfg_freeze_color to the parsed RGB value.
+TEST_F(HandleSaveTest, FreezeColorUpdated) {
+    RecordProperty("description",
+        "Submitting a valid '#rrggbb' freeze_color hex string updates "
+        "cfg_freeze_color to the parsed RGB value.");
+    g_mock_server_args["freeze_color"] = "#ff0000";
+    handleSave();
+    EXPECT_EQ(cfg_freeze_color, 0xFF0000U);
+}
+
+// Description: Submitting a valid '#rrggbb' heat_color hex string updates
+// cfg_heat_color to the parsed RGB value.
+TEST_F(HandleSaveTest, HeatColorUpdated) {
+    RecordProperty("description",
+        "Submitting a valid '#rrggbb' heat_color hex string updates "
+        "cfg_heat_color to the parsed RGB value.");
+    g_mock_server_args["heat_color"] = "#00ff80";
+    handleSave();
+    EXPECT_EQ(cfg_heat_color, 0x00FF80U);
+}
+
+// Description: Submitting a valid '#rrggbb' rain_color hex string updates
+// cfg_rain_color to the parsed RGB value.
+TEST_F(HandleSaveTest, RainColorUpdated) {
+    RecordProperty("description",
+        "Submitting a valid '#rrggbb' rain_color hex string updates "
+        "cfg_rain_color to the parsed RGB value.");
+    g_mock_server_args["rain_color"] = "#4040ff";
+    handleSave();
+    EXPECT_EQ(cfg_rain_color, 0x4040FFU);
+}
+
+// Description: A color arg that is not a 7-character '#rrggbb' string is
+// rejected and the existing color value is unchanged.
+TEST_F(HandleSaveTest, InvalidColorArgIgnored) {
+    RecordProperty("description",
+        "A color arg that is not a 7-character '#rrggbb' string is rejected "
+        "and the existing color value is unchanged.");
+    g_mock_server_args["freeze_color"] = "notacolor";
+    handleSave();
+    EXPECT_EQ(cfg_freeze_color, DEFAULT_FREEZE_COLOR);
+}
+
+// Description: Alert color values are written to NVS under their respective
+// keys so they survive a device reboot and are restored by loadConfig().
+TEST_F(HandleSaveTest, AlertColorsPersistedToNvs) {
+    RecordProperty("description",
+        "Alert color values are written to NVS under their respective keys so "
+        "they survive a device reboot and are restored by loadConfig().");
+    g_mock_server_args["freeze_color"] = "#c8c8ff";
+    g_mock_server_args["heat_color"]   = "#ff8c00";
+    g_mock_server_args["rain_color"]   = "#00c8c8";
+    handleSave();
+    ASSERT_NE(g_mock_prefs_store.find("freeze_clr"), g_mock_prefs_store.end());
+    ASSERT_NE(g_mock_prefs_store.find("heat_clr"),   g_mock_prefs_store.end());
+    ASSERT_NE(g_mock_prefs_store.find("rain_clr"),   g_mock_prefs_store.end());
+    EXPECT_EQ(std::stoul(g_mock_prefs_store["freeze_clr"]), 0xC8C8FFU);
+    EXPECT_EQ(std::stoul(g_mock_prefs_store["heat_clr"]),   0xFF8C00U);
+    EXPECT_EQ(std::stoul(g_mock_prefs_store["rain_clr"]),   0x00C8C8U);
+}
+
+// Description: Changing freeze_thr sets g_forceRepoll so the new threshold
+// takes effect on the LEDs immediately without waiting for the next scheduled poll.
+TEST_F(HandleSaveTest, ChangedFreezeThrSetsRepoll) {
+    RecordProperty("description",
+        "Changing freeze_thr sets g_forceRepoll so the new threshold takes effect "
+        "on the LEDs immediately without waiting for the next scheduled poll.");
+    g_mock_server_args["freeze_thr"] = "28.0";  // different from DEFAULT_FREEZE_THR_F (32)
+    handleSave();
+    EXPECT_TRUE(g_forceRepoll);
+}
+
+// Description: Changing heat_thr sets g_forceRepoll so the updated threshold
+// is reflected on the LEDs immediately.
+TEST_F(HandleSaveTest, ChangedHeatThrSetsRepoll) {
+    RecordProperty("description",
+        "Changing heat_thr sets g_forceRepoll so the updated threshold is "
+        "reflected on the LEDs immediately.");
+    g_mock_server_args["heat_thr"] = "100.0";  // different from DEFAULT_HEAT_THR_F (95)
+    handleSave();
+    EXPECT_TRUE(g_forceRepoll);
+}
+
+// Description: Changing precip_thr sets g_forceRepoll so the updated
+// precipitation threshold takes effect on the LEDs immediately.
+TEST_F(HandleSaveTest, ChangedPrecipThrSetsRepoll) {
+    RecordProperty("description",
+        "Changing precip_thr sets g_forceRepoll so the updated precipitation "
+        "threshold takes effect on the LEDs immediately.");
+    g_mock_server_args["precip_thr"] = "70.0";  // different from DEFAULT_PRECIP_THR_PCT (50)
+    handleSave();
+    EXPECT_TRUE(g_forceRepoll);
+}
+
+// Description: Changing an alert color sets g_forceRepoll so the LED flash
+// color updates immediately without waiting for the next scheduled poll.
+TEST_F(HandleSaveTest, ChangedAlertColorSetsRepoll) {
+    RecordProperty("description",
+        "Changing an alert color sets g_forceRepoll so the LED flash color "
+        "updates immediately without waiting for the next scheduled poll.");
+    g_mock_server_args["freeze_color"] = "#ff0000";  // different from default
+    handleSave();
+    EXPECT_TRUE(g_forceRepoll);
+}
+
+// Description: Submitting the same threshold and color values that are already
+// configured does not set g_forceRepoll, avoiding a redundant weather fetch.
+TEST_F(HandleSaveTest, UnchangedThresholdAndColorNoRepoll) {
+    RecordProperty("description",
+        "Submitting the same threshold and color values that are already configured "
+        "does not set g_forceRepoll, avoiding a redundant weather fetch.");
+    g_mock_server_args["freeze_thr"]   = std::to_string(DEFAULT_FREEZE_THR_F);
+    g_mock_server_args["heat_thr"]     = std::to_string(DEFAULT_HEAT_THR_F);
+    g_mock_server_args["precip_thr"]   = std::to_string(DEFAULT_PRECIP_THR_PCT);
+    g_mock_server_args["freeze_color"] = "#c8c8ff";
+    g_mock_server_args["heat_color"]   = "#ff8c00";
+    g_mock_server_args["rain_color"]   = "#00c8c8";
+    handleSave();
+    EXPECT_FALSE(g_forceRepoll);
 }

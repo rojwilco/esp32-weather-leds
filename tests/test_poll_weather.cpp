@@ -39,6 +39,9 @@ protected:
         cfg_alert_hold_sec  = DEFAULT_ALERT_HOLD_SEC;
         cfg_attack_sec      = DEFAULT_ATTACK_SEC;
         cfg_decay_sec       = DEFAULT_DECAY_SEC;
+        cfg_freeze_color    = DEFAULT_FREEZE_COLOR;
+        cfg_heat_color      = DEFAULT_HEAT_COLOR;
+        cfg_rain_color      = DEFAULT_RAIN_COLOR;
     }
 
     void setAllDays(float tempMax, float tempMin, float precip) {
@@ -236,4 +239,46 @@ TEST_F(PollWeatherTest, PerLedAlertsAreIndependent) {
     EXPECT_EQ(ledStates[3].alert, ALERT_NONE)   << "LED 3";
     EXPECT_EQ(ledStates[4].alert, ALERT_NONE)   << "LED 4";
     EXPECT_EQ(ledStates[5].alert, ALERT_NONE)   << "LED 5";
+}
+
+// Description: When cfg_freeze_color is set to a custom value, a freeze-alert
+// LED's alertColor matches the custom color after pollWeather().
+TEST_F(PollWeatherTest, FreezeAlertUsesConfiguredColor) {
+    RecordProperty("description",
+        "When cfg_freeze_color is set to a custom value, a freeze-alert LED's "
+        "alertColor matches the custom color after pollWeather().");
+    cfg_freeze_color = 0xAABBCCU;
+    setAllDays(50.0f, 28.0f, 10.0f);  // freeze condition
+    pollWeather();
+    EXPECT_EQ(ledStates[0].alertColor.r, 0xAA) << "freeze alertColor red";
+    EXPECT_EQ(ledStates[0].alertColor.g, 0xBB) << "freeze alertColor green";
+    EXPECT_EQ(ledStates[0].alertColor.b, 0xCC) << "freeze alertColor blue";
+}
+
+// Description: When cfg_heat_color is set to a custom value, a heat-alert
+// LED's alertColor matches the custom color after pollWeather().
+TEST_F(PollWeatherTest, HeatAlertUsesConfiguredColor) {
+    RecordProperty("description",
+        "When cfg_heat_color is set to a custom value, a heat-alert LED's "
+        "alertColor matches the custom color after pollWeather().");
+    cfg_heat_color = 0x112233U;
+    setAllDays(100.0f, 70.0f, 10.0f);  // heat condition
+    pollWeather();
+    EXPECT_EQ(ledStates[0].alertColor.r, 0x11) << "heat alertColor red";
+    EXPECT_EQ(ledStates[0].alertColor.g, 0x22) << "heat alertColor green";
+    EXPECT_EQ(ledStates[0].alertColor.b, 0x33) << "heat alertColor blue";
+}
+
+// Description: When cfg_rain_color is set to a custom value, a rain-alert
+// LED's alertColor matches the custom color after pollWeather().
+TEST_F(PollWeatherTest, RainAlertUsesConfiguredColor) {
+    RecordProperty("description",
+        "When cfg_rain_color is set to a custom value, a rain-alert LED's "
+        "alertColor matches the custom color after pollWeather().");
+    cfg_rain_color = 0x998877U;
+    setAllDays(75.0f, 55.0f, 80.0f);  // rain condition
+    pollWeather();
+    EXPECT_EQ(ledStates[0].alertColor.r, 0x99) << "rain alertColor red";
+    EXPECT_EQ(ledStates[0].alertColor.g, 0x88) << "rain alertColor green";
+    EXPECT_EQ(ledStates[0].alertColor.b, 0x77) << "rain alertColor blue";
 }

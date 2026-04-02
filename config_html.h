@@ -22,6 +22,11 @@ select{width:100%%;box-sizing:border-box;background:#2a2a2a;color:#e0e0e0;border
 .loc{background:#3a5a7a;color:#fff;border:none;border-radius:4px;white-space:nowrap;padding:.4em .8em;font-size:1em;cursor:pointer}
 .locstatus{font-size:.8em;color:#aaa;margin-top:.4em;min-height:1.2em}
 @media(max-width:480px){.loc-zone{grid-template-columns:1fr auto}.loc-zone select{grid-column:1/-1}}
+.thr-row{display:flex;gap:.5em;align-items:center;margin-top:.5em}
+.thr-row input[type=number]{flex:1;min-width:0;padding:.4em;font-size:1em;background:#2a2a2a;color:#e0e0e0;border:1px solid #444;border-radius:4px;box-sizing:border-box}
+.thr-row input[type=color]{width:2.5em;height:2.2em;padding:2px;border-radius:4px;cursor:pointer;border:1px solid #444;background:#2a2a2a;flex-shrink:0}
+input.clr-hex{width:5.2em;font-size:.85em;font-family:monospace;padding:.3em .4em;background:#2a2a2a;color:#e0e0e0;border:1px solid #444;border-radius:4px;box-sizing:border-box;flex-shrink:0}
+input.clr-hex.invalid{border-color:#a04040}
 </style>
 </head><body>
 <h1>⛅ Weather LEDs Config</h1>
@@ -128,15 +133,27 @@ select{width:100%%;box-sizing:border-box;background:#2a2a2a;color:#e0e0e0;border
 <input type="text" id="latInput" name="latitude" maxlength="12" value="%s">
 <label>Longitude</label>
 <input type="text" id="lonInput" name="longitude" maxlength="12" value="%s">
-<label>Freeze threshold &deg;F</label>
-<input type="number" name="freeze_thr" step="0.1" value="%.1f">
-<label>Heat threshold &deg;F</label>
-<input type="number" name="heat_thr" step="0.1" value="%.1f">
-<label>Precipitation threshold %%</label>
-<input type="number" name="precip_thr" step="0.1" min="0" max="100" value="%.1f">
 <hr style="border:none;border-top:2px solid #333;margin:2.5em 0 1.5em">
 <details>
 <summary style="cursor:pointer;font-size:1em;color:#888;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.5em">Nerdy Settings</summary>
+<label style="margin-top:.8em;font-size:.85em;color:#777;text-transform:uppercase;letter-spacing:.06em">Alert thresholds &amp; colors</label>
+<label>Freeze threshold &deg;F &mdash; alert when min temp &le; this</label>
+<div class="thr-row">
+<input type="number" name="freeze_thr" step="0.1" value="%.1f">
+<input type="color" name="freeze_color" value="%s"><input type="text" class="clr-hex" maxlength="7" spellcheck="false" placeholder="#rrggbb">
+</div>
+<label>Heat threshold &deg;F &mdash; alert when max temp &ge; this</label>
+<div class="thr-row">
+<input type="number" name="heat_thr" step="0.1" value="%.1f">
+<input type="color" name="heat_color" value="%s"><input type="text" class="clr-hex" maxlength="7" spellcheck="false" placeholder="#rrggbb">
+</div>
+<label>Precipitation threshold %% &mdash; alert when precip prob &ge; this</label>
+<div class="thr-row">
+<input type="number" name="precip_thr" step="0.1" min="0" max="100" value="%.1f">
+<input type="color" name="rain_color" value="%s"><input type="text" class="clr-hex" maxlength="7" spellcheck="false" placeholder="#rrggbb">
+</div>
+<div style="text-align:right;margin-top:.5em"><button type="button" onclick="resetThresholdDefaults()" style="background:#444;color:#aaa;font-size:.8em;padding:.3em .8em;border:none;border-radius:4px;cursor:pointer">Reset to defaults</button></div>
+<label style="margin-top:1.2em;font-size:.85em;color:#777;text-transform:uppercase;letter-spacing:.06em">Animation timing</label>
 <label>Hold (s) &mdash; pause on temperature color between flash cycles</label>
 <input type="number" name="hold_sec" step="0.01" min="0.1" max="60" value="%.2f">
 <label>Alert hold (s) &mdash; pause at peak alert color before fading back</label>
@@ -197,11 +214,55 @@ var initVals={};
     document.getElementById('saveBtn').classList.toggle('dirty',dirty);
   });
 })();
+function syncColorHex(picker){
+  var hex=picker.nextElementSibling;
+  if(hex&&hex.classList.contains('clr-hex'))hex.value=picker.value;
+}
+document.querySelectorAll('input[type=color]').forEach(function(el){
+  el.setAttribute('value',el.value);  // sync attr so native picker dialog initialises from current color
+  syncColorHex(el);
+  el.addEventListener('input',function(){syncColorHex(el);});
+  // iOS/Android bug: the native "Custom Color" view opens with HSV sliders at 0
+  // instead of reflecting the element's current value.  Nudging the value (both
+  // the IDL property and the content attribute) synchronously inside the click
+  // handler — which runs before the browser's default action of opening the picker
+  // — forces the browser to invalidate any cached colour state and re-read the
+  // current value when the picker dialog is created.
+  el.addEventListener('click',function(){
+    var v=el.value;
+    var a=(v==='#000000')?'#000001':'#000000';
+    el.setAttribute('value',a);el.value=a;
+    el.setAttribute('value',v);el.value=v;
+  });
+  var hex=el.nextElementSibling;
+  if(hex&&hex.classList.contains('clr-hex')){
+    hex.addEventListener('input',function(){
+      hex.classList.toggle('invalid',!/^#[0-9a-fA-F]{6}$/.test(hex.value));
+      if(/^#[0-9a-fA-F]{6}$/.test(hex.value)){
+        el.setAttribute('value',hex.value);  // keep attr in sync so native picker shows current color
+        el.value=hex.value;
+        el.dispatchEvent(new Event('input',{bubbles:true}));
+      }
+    });
+    hex.addEventListener('change',function(){
+      if(!/^#[0-9a-fA-F]{6}$/.test(hex.value)){hex.value=el.value;hex.classList.remove('invalid');}
+    });
+  }
+});
 function resetNerdyDefaults(){
   document.querySelector('[name=hold_sec]').value='%.2f';
   document.querySelector('[name=alert_hold_sec]').value='%.2f';
   document.querySelector('[name=attack_sec]').value='%.2f';
   document.querySelector('[name=decay_sec]').value='%.2f';
+  document.getElementById('mainForm').dispatchEvent(new Event('input',{bubbles:true}));
+}
+function resetThresholdDefaults(){
+  document.querySelector('[name=freeze_thr]').value='%.1f';
+  var fc=document.querySelector('[name=freeze_color]'),fv='%s';fc.setAttribute('value',fv);fc.value=fv;syncColorHex(fc);
+  document.querySelector('[name=heat_thr]').value='%.1f';
+  var hc=document.querySelector('[name=heat_color]'),hv='%s';hc.setAttribute('value',hv);hc.value=hv;syncColorHex(hc);
+  document.querySelector('[name=precip_thr]').value='%.1f';
+  var rc=document.querySelector('[name=rain_color]'),rv='%s';rc.setAttribute('value',rv);rc.value=rv;syncColorHex(rc);
   document.getElementById('mainForm').dispatchEvent(new Event('input',{bubbles:true}));
 }
 function setLocStatus(m){document.getElementById('locStatus').textContent=m;}

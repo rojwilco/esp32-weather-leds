@@ -15,6 +15,10 @@ protected:
         cfg_freeze_thr  = DEFAULT_FREEZE_THR_F;
         cfg_heat_thr    = DEFAULT_HEAT_THR_F;
         cfg_precip_thr  = DEFAULT_PRECIP_THR_PCT;
+        cfg_hold_sec        = DEFAULT_HOLD_SEC;
+        cfg_alert_hold_sec  = DEFAULT_ALERT_HOLD_SEC;
+        cfg_attack_sec      = DEFAULT_ATTACK_SEC;
+        cfg_decay_sec       = DEFAULT_DECAY_SEC;
         strncpy(cfg_wifi_ssid, DEFAULT_WIFI_SSID, sizeof(cfg_wifi_ssid));
         strncpy(cfg_wifi_pass, DEFAULT_WIFI_PASS, sizeof(cfg_wifi_pass));
         g_forceRepoll    = false;
@@ -235,4 +239,157 @@ TEST_F(HandleSaveTest, NumLedsPersistedToNvs) {
     g_mock_server_args["num_leds"] = "8";
     handleSave();
     EXPECT_EQ(g_mock_prefs_store["num_leds"], "8");
+}
+
+// Description: A hold_sec value above the 60 s maximum is clamped to 60
+// so the device never waits an unreasonable time between animation cycles.
+TEST_F(HandleSaveTest, HoldSecClampedAtMax) {
+    RecordProperty("description",
+        "A hold_sec value above the 60 s maximum is clamped to 60 so the "
+        "device never waits an unreasonable time between animation cycles.");
+    g_mock_server_args["hold_sec"] = "999";
+    handleSave();
+    EXPECT_FLOAT_EQ(cfg_hold_sec, 60.0f);
+}
+
+// Description: A hold_sec value below the 0.1 s minimum is clamped to 0.1
+// so animation always has a measurable hold phase.
+TEST_F(HandleSaveTest, HoldSecClampedAtMin) {
+    RecordProperty("description",
+        "A hold_sec value below the 0.1 s minimum is clamped to 0.1 so "
+        "animation always has a measurable hold phase.");
+    g_mock_server_args["hold_sec"] = "0.0";
+    handleSave();
+    EXPECT_FLOAT_EQ(cfg_hold_sec, 0.1f);
+}
+
+// Description: A fractional hold_sec value like 1.5 is stored exactly,
+// confirming that sub-second resolution is accepted.
+TEST_F(HandleSaveTest, HoldSecAcceptsFloat) {
+    RecordProperty("description",
+        "A fractional hold_sec value like 1.5 is stored exactly, confirming "
+        "that sub-second resolution is accepted.");
+    g_mock_server_args["hold_sec"] = "1.5";
+    handleSave();
+    EXPECT_FLOAT_EQ(cfg_hold_sec, 1.5f);
+}
+
+// Description: An attack_sec value above the 10 s maximum is clamped to 10
+// so the attack duration stays within a reasonable range.
+TEST_F(HandleSaveTest, AttackSecClampedAtMax) {
+    RecordProperty("description",
+        "An attack_sec value above the 10 s maximum is clamped to 10 so the "
+        "attack duration stays within a reasonable range.");
+    g_mock_server_args["attack_sec"] = "999";
+    handleSave();
+    EXPECT_FLOAT_EQ(cfg_attack_sec, 10.0f);
+}
+
+// Description: An attack_sec value below the 0.1 s minimum is clamped to 0.1
+// so the attack phase is always visibly perceptible.
+TEST_F(HandleSaveTest, AttackSecClampedAtMin) {
+    RecordProperty("description",
+        "An attack_sec value below the 0.1 s minimum is clamped to 0.1 so "
+        "the attack phase is always visibly perceptible.");
+    g_mock_server_args["attack_sec"] = "0.0";
+    handleSave();
+    EXPECT_FLOAT_EQ(cfg_attack_sec, 0.1f);
+}
+
+// Description: A fractional attack_sec value like 0.25 is stored exactly,
+// confirming that quarter-second resolution is accepted.
+TEST_F(HandleSaveTest, AttackSecAcceptsFloat) {
+    RecordProperty("description",
+        "A fractional attack_sec value like 0.25 is stored exactly, confirming "
+        "that quarter-second resolution is accepted.");
+    g_mock_server_args["attack_sec"] = "0.25";
+    handleSave();
+    EXPECT_FLOAT_EQ(cfg_attack_sec, 0.25f);
+}
+
+// Description: A decay_sec value above the 10 s maximum is clamped to 10
+// so the decay duration stays within a reasonable range.
+TEST_F(HandleSaveTest, DecaySecClampedAtMax) {
+    RecordProperty("description",
+        "A decay_sec value above the 10 s maximum is clamped to 10 so the "
+        "decay duration stays within a reasonable range.");
+    g_mock_server_args["decay_sec"] = "999";
+    handleSave();
+    EXPECT_FLOAT_EQ(cfg_decay_sec, 10.0f);
+}
+
+// Description: A decay_sec value below the 0.1 s minimum is clamped to 0.1
+// so the decay phase is always visibly perceptible.
+TEST_F(HandleSaveTest, DecaySecClampedAtMin) {
+    RecordProperty("description",
+        "A decay_sec value below the 0.1 s minimum is clamped to 0.1 so "
+        "the decay phase is always visibly perceptible.");
+    g_mock_server_args["decay_sec"] = "0.0";
+    handleSave();
+    EXPECT_FLOAT_EQ(cfg_decay_sec, 0.1f);
+}
+
+// Description: A fractional decay_sec value like 1.5 is stored exactly,
+// confirming that sub-second resolution is accepted for long decays.
+TEST_F(HandleSaveTest, DecaySecAcceptsFloat) {
+    RecordProperty("description",
+        "A fractional decay_sec value like 1.5 is stored exactly, confirming "
+        "that sub-second resolution is accepted for long decays.");
+    g_mock_server_args["decay_sec"] = "1.5";
+    handleSave();
+    EXPECT_FLOAT_EQ(cfg_decay_sec, 1.5f);
+}
+
+// Description: An alert_hold_sec value above the 10 s maximum is clamped to 10
+// so the LED does not freeze indefinitely on the alert color.
+TEST_F(HandleSaveTest, AlertHoldSecClampedAtMax) {
+    RecordProperty("description",
+        "An alert_hold_sec value above the 10 s maximum is clamped to 10 so "
+        "the LED does not freeze indefinitely on the alert color.");
+    g_mock_server_args["alert_hold_sec"] = "999";
+    handleSave();
+    EXPECT_FLOAT_EQ(cfg_alert_hold_sec, 10.0f);
+}
+
+// Description: An alert_hold_sec of 0 is valid (no hold at peak) and is
+// stored as-is, allowing the flash to immediately start fading back.
+TEST_F(HandleSaveTest, AlertHoldSecZeroIsValid) {
+    RecordProperty("description",
+        "An alert_hold_sec of 0 is valid (no hold at peak) and is stored as-is, "
+        "allowing the flash to immediately start fading back.");
+    g_mock_server_args["alert_hold_sec"] = "0";
+    handleSave();
+    EXPECT_FLOAT_EQ(cfg_alert_hold_sec, 0.0f);
+}
+
+// Description: A fractional alert_hold_sec like 0.75 is accepted exactly,
+// confirming that sub-second resolution is supported.
+TEST_F(HandleSaveTest, AlertHoldSecAcceptsFloat) {
+    RecordProperty("description",
+        "A fractional alert_hold_sec like 0.75 is accepted exactly, confirming "
+        "that sub-second resolution is supported.");
+    g_mock_server_args["alert_hold_sec"] = "0.75";
+    handleSave();
+    EXPECT_FLOAT_EQ(cfg_alert_hold_sec, 0.75f);
+}
+
+// Description: The hold_sec, attack_sec, and decay_sec values are written to
+// NVS so they survive a device reboot and are restored by loadConfig().
+TEST_F(HandleSaveTest, AnimTimingPersistedToNvs) {
+    RecordProperty("description",
+        "The hold_sec, attack_sec, and decay_sec values are written to NVS so "
+        "they survive a device reboot and are restored by loadConfig().");
+    g_mock_server_args["hold_sec"]       = "2.5";
+    g_mock_server_args["alert_hold_sec"] = "0.3";
+    g_mock_server_args["attack_sec"]     = "0.2";
+    g_mock_server_args["decay_sec"]      = "1.5";
+    handleSave();
+    ASSERT_NE(g_mock_prefs_store.find("hold_sec"),       g_mock_prefs_store.end());
+    ASSERT_NE(g_mock_prefs_store.find("alert_hold_sec"), g_mock_prefs_store.end());
+    ASSERT_NE(g_mock_prefs_store.find("attack_sec"),     g_mock_prefs_store.end());
+    ASSERT_NE(g_mock_prefs_store.find("decay_sec"),      g_mock_prefs_store.end());
+    EXPECT_FLOAT_EQ(std::stof(g_mock_prefs_store["hold_sec"]),       2.5f);
+    EXPECT_FLOAT_EQ(std::stof(g_mock_prefs_store["alert_hold_sec"]), 0.3f);
+    EXPECT_FLOAT_EQ(std::stof(g_mock_prefs_store["attack_sec"]),     0.2f);
+    EXPECT_FLOAT_EQ(std::stof(g_mock_prefs_store["decay_sec"]),      1.5f);
 }

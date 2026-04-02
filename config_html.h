@@ -133,6 +133,19 @@ select{width:100%%;box-sizing:border-box;background:#2a2a2a;color:#e0e0e0;border
 <input type="number" name="heat_thr" step="0.1" value="%.1f">
 <label>Precipitation threshold %%</label>
 <input type="number" name="precip_thr" step="0.1" min="0" max="100" value="%.1f">
+<hr style="border:none;border-top:2px solid #333;margin:2.5em 0 1.5em">
+<details>
+<summary style="cursor:pointer;font-size:1em;color:#888;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.5em">Nerdy Settings</summary>
+<label>Hold (s) &mdash; pause on temperature color between flash cycles</label>
+<input type="number" name="hold_sec" step="0.01" min="0.1" max="60" value="%.2f">
+<label>Alert hold (s) &mdash; pause at peak alert color before fading back</label>
+<input type="number" name="alert_hold_sec" step="0.01" min="0" max="10" value="%.2f">
+<label>Attack (s) &mdash; time to rise from temperature to alert color</label>
+<input type="number" name="attack_sec" step="0.01" min="0.1" max="10" value="%.2f">
+<label>Decay (s) &mdash; time to fade back from alert to temperature color</label>
+<input type="number" name="decay_sec" step="0.01" min="0.1" max="10" value="%.2f">
+<div style="text-align:right;margin-top:.5em"><button type="button" onclick="resetNerdyDefaults()" style="background:#444;color:#aaa;font-size:.8em;padding:.3em .8em;border:none;border-radius:4px;cursor:pointer">Revert to defaults</button></div>
+</details>
 <br>
 <button id="saveBtn" class="btn save" type="submit">Save</button>
 </form>
@@ -183,6 +196,13 @@ var initVals={};
     document.getElementById('saveBtn').classList.toggle('dirty',dirty);
   });
 })();
+function resetNerdyDefaults(){
+  document.querySelector('[name=hold_sec]').value='%.2f';
+  document.querySelector('[name=alert_hold_sec]').value='%.2f';
+  document.querySelector('[name=attack_sec]').value='%.2f';
+  document.querySelector('[name=decay_sec]').value='%.2f';
+  document.getElementById('mainForm').dispatchEvent(new Event('input',{bubbles:true}));
+}
 function setLocStatus(m){document.getElementById('locStatus').textContent=m;}
 function scanWifi(){
   var st=document.getElementById('scanStatus');

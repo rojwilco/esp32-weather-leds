@@ -275,6 +275,41 @@ TEST_F(HandleRootTest, AlertColorValuesInjected) {
     EXPECT_NE(body.find("#0000ff"), std::string::npos) << "rain color hex not injected";
 }
 
+// Description: handleRoot() renders three editable hex text inputs (class="clr-hex")
+// alongside the color pickers so the user can type a raw #rrggbb value directly.
+TEST_F(HandleRootTest, HexTextInputsPresent) {
+    RecordProperty("description",
+        "handleRoot() renders three editable hex text inputs (class=\"clr-hex\") "
+        "alongside the color pickers so the user can type a raw #rrggbb value directly.");
+    handleRoot();
+    std::string body = g_mock_last_send_body.c_str();
+    // Count occurrences of class="clr-hex" — expect exactly three (freeze, heat, rain).
+    size_t count = 0, pos = 0;
+    while ((pos = body.find("clr-hex", pos)) != std::string::npos) { ++count; ++pos; }
+    EXPECT_EQ(count, 3u) << "expected 3 clr-hex inputs, got " << count;
+    EXPECT_NE(body.find("type=\"text\""),           std::string::npos) << "no text input found";
+    EXPECT_NE(body.find("maxlength=\"7\""),         std::string::npos) << "maxlength=\"7\" missing";
+    EXPECT_NE(body.find("placeholder=\"#rrggbb\""), std::string::npos) << "placeholder missing";
+}
+
+// Description: handleRoot() renders the syncColorHex JS function and wires it
+// into the color picker oninput handler and resetThresholdDefaults, so picker
+// and text field stay in sync in both directions and on reset.
+TEST_F(HandleRootTest, SyncColorHexFunctionPresent) {
+    RecordProperty("description",
+        "handleRoot() renders the syncColorHex JS function and wires it into the "
+        "color picker oninput handler and resetThresholdDefaults, so picker and text "
+        "field stay in sync in both directions and on reset.");
+    handleRoot();
+    std::string body = g_mock_last_send_body.c_str();
+    EXPECT_NE(body.find("syncColorHex"),           std::string::npos) << "syncColorHex function missing";
+    // The reset function must call syncColorHex so hex fields update on reset.
+    size_t resetPos = body.find("resetThresholdDefaults");
+    ASSERT_NE(resetPos, std::string::npos);
+    size_t syncInReset = body.find("syncColorHex", resetPos);
+    EXPECT_NE(syncInReset, std::string::npos) << "syncColorHex not called inside resetThresholdDefaults";
+}
+
 // Description: handleRoot() renders a resetThresholdDefaults() JS function with
 // "Reset to defaults" button so alert thresholds and colors can be restored at once.
 TEST_F(HandleRootTest, ThresholdResetButtonPresent) {

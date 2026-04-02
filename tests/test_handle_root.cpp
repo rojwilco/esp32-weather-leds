@@ -292,6 +292,21 @@ TEST_F(HandleRootTest, HexTextInputsPresent) {
     EXPECT_NE(body.find("placeholder=\"#rrggbb\""), std::string::npos) << "placeholder missing";
 }
 
+// Description: handleRoot() renders a pointerdown listener on each color picker
+// that nudges the value before the native dialog opens, working around the iOS
+// bug where the Custom Color view initialises its HSV sliders to zero.
+TEST_F(HandleRootTest, ColorPickerPointerdownNudgePresent) {
+    RecordProperty("description",
+        "handleRoot() renders a pointerdown listener on each color picker that "
+        "nudges the value before the native dialog opens, working around the iOS "
+        "bug where the Custom Color view initialises its HSV sliders to zero.");
+    handleRoot();
+    std::string body = g_mock_last_send_body.c_str();
+    EXPECT_NE(body.find("pointerdown"), std::string::npos) << "pointerdown listener missing";
+    // The nudge must toggle between #000000 and #000001 to force iOS re-read.
+    EXPECT_NE(body.find("#000001"),     std::string::npos) << "nudge value #000001 missing";
+}
+
 // Description: handleRoot() renders the syncColorHex JS function and wires it
 // into the color picker oninput handler and resetThresholdDefaults, so picker
 // and text field stay in sync in both directions and on reset.

@@ -25,6 +25,7 @@ select{width:100%%;box-sizing:border-box;background:#2a2a2a;color:#e0e0e0;border
 .thr-row{display:flex;gap:.5em;align-items:center;margin-top:.5em}
 .thr-row input[type=number]{flex:1;min-width:0;padding:.4em;font-size:1em;background:#2a2a2a;color:#e0e0e0;border:1px solid #444;border-radius:4px;box-sizing:border-box}
 .thr-row input[type=color]{width:2.5em;height:2.2em;padding:2px;border-radius:4px;cursor:pointer;border:1px solid #444;background:#2a2a2a;flex-shrink:0}
+.clr-hex{font-size:.8em;color:#aaa;font-family:monospace;min-width:4.5em}
 </style>
 </head><body>
 <h1>⛅ Weather LEDs Config</h1>
@@ -138,17 +139,17 @@ select{width:100%%;box-sizing:border-box;background:#2a2a2a;color:#e0e0e0;border
 <label>Freeze threshold &deg;F &mdash; alert when min temp &le; this</label>
 <div class="thr-row">
 <input type="number" name="freeze_thr" step="0.1" value="%.1f">
-<input type="color" name="freeze_color" value="%s">
+<input type="color" name="freeze_color" value="%s"><span class="clr-hex"></span>
 </div>
 <label>Heat threshold &deg;F &mdash; alert when max temp &ge; this</label>
 <div class="thr-row">
 <input type="number" name="heat_thr" step="0.1" value="%.1f">
-<input type="color" name="heat_color" value="%s">
+<input type="color" name="heat_color" value="%s"><span class="clr-hex"></span>
 </div>
 <label>Precipitation threshold %% &mdash; alert when precip prob &ge; this</label>
 <div class="thr-row">
 <input type="number" name="precip_thr" step="0.1" min="0" max="100" value="%.1f">
-<input type="color" name="rain_color" value="%s">
+<input type="color" name="rain_color" value="%s"><span class="clr-hex"></span>
 </div>
 <div style="text-align:right;margin-top:.5em"><button type="button" onclick="resetThresholdDefaults()" style="background:#444;color:#aaa;font-size:.8em;padding:.3em .8em;border:none;border-radius:4px;cursor:pointer">Reset to defaults</button></div>
 <label style="margin-top:1.2em;font-size:.85em;color:#777;text-transform:uppercase;letter-spacing:.06em">Animation timing</label>
@@ -212,6 +213,13 @@ var initVals={};
     document.getElementById('saveBtn').classList.toggle('dirty',dirty);
   });
 })();
+document.querySelectorAll('input[type=color]').forEach(function(el){
+  var span=el.nextElementSibling;
+  if(span&&span.classList.contains('clr-hex')){
+    span.textContent=el.value;
+    el.addEventListener('input',function(){span.textContent=el.value;});
+  }
+});
 function resetNerdyDefaults(){
   document.querySelector('[name=hold_sec]').value='%.2f';
   document.querySelector('[name=alert_hold_sec]').value='%.2f';

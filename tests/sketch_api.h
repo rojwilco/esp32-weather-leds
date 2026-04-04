@@ -94,7 +94,7 @@ extern bool     g_pendingConnect;
 // ── Sketch functions (defined in sketch_wrapper.cpp via sketch_lib) ───────────
 CRGB tempToColor(float tempF);
 bool fetchForecast(DayForecast* outDays);
-void pollWeather();
+bool pollWeather();
 void tickAnimations();
 void applyHostname();
 void startAPMode();

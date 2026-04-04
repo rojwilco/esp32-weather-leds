@@ -282,3 +282,27 @@ TEST_F(PollWeatherTest, RainAlertUsesConfiguredColor) {
     EXPECT_EQ(ledStates[0].alertColor.g, 0x88) << "rain alertColor green";
     EXPECT_EQ(ledStates[0].alertColor.b, 0x77) << "rain alertColor blue";
 }
+
+// ── Return value ──────────────────────────────────────────────────────────────
+
+// Description: pollWeather() returns true when fetchForecast() succeeds so
+// the caller can distinguish a good poll from a failed one.
+TEST_F(PollWeatherTest, ReturnsTrueOnSuccess) {
+    RecordProperty("description",
+        "pollWeather() returns true when fetchForecast() succeeds so the "
+        "caller can distinguish a good poll from a failed one.");
+    setAllDays(75.0f, 55.0f, 10.0f);
+    EXPECT_TRUE(pollWeather());
+}
+
+// Description: pollWeather() returns false when the HTTP fetch fails so
+// the caller can schedule a shorter retry interval instead of waiting the
+// full poll period.
+TEST_F(PollWeatherTest, ReturnsFalseOnFetchFailure) {
+    RecordProperty("description",
+        "pollWeather() returns false when the HTTP fetch fails so the caller "
+        "can schedule a shorter retry interval instead of waiting the full "
+        "poll period.");
+    g_mock_http_code = 500;
+    EXPECT_FALSE(pollWeather());
+}

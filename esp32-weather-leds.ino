@@ -221,7 +221,7 @@ bool fetchForecast(DayForecast* outDays) {
   return true;
 }
 
-void pollWeather() {
+bool pollWeather() {
   DayForecast forecast[MAX_LEDS];
 
   Serial.println("pollWeather: fetching forecast...");
@@ -276,6 +276,7 @@ void pollWeather() {
   }
 
   FastLED.show();
+  return ok;
 }
 
 void tickAnimations() {
@@ -686,8 +687,14 @@ void loop() {
   if (firstRun || g_forceRepoll || (millis() - lastPollTime >= pollMs)) {
     firstRun = false;
     g_forceRepoll = false;
-    pollWeather();
-    lastPollTime = millis();
+    bool ok = pollWeather();
+    // On success, reset the full poll interval.  On failure, retry after 1 min
+    // so transient network errors don't leave the display stuck for cfg_poll_min.
+    if (ok) {
+      lastPollTime = millis();
+    } else {
+      lastPollTime = millis() - pollMs + 60UL * 1000UL;
+    }
   }
 
   tickAnimations();

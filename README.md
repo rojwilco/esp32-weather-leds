@@ -1,7 +1,9 @@
 # ESP32 Weather LED Indicator
 
-Displays up to 16 days of average temperature forecast on up to 16 WS2812B LEDs (configurable, default 6).
-Each LED represents one day, color-coded from blue (cold) to red (hot).
+Displays up to 16 days of weather forecast on up to 16 WS2812B LEDs (default 6, configurable via web UI).
+Each LED represents one day, color-coded blue (cold) to red (hot). LEDs pulse to alert on freeze days
+(daily low ≤ 32°F), heat days (daily high ≥ 95°F), and rainy days (precipitation probability ≥ 50%) —
+all thresholds configurable.
 
 ## Hardware
 

@@ -5,8 +5,14 @@ Each LED represents one day, color-coded from blue (cold) to red (hot).
 
 ## Hardware
 
-- WeMos D1 Mini (ESP32)
-- 1–16x WS2812B addressable LEDs on GPIO 23 (default 6, configurable via web UI; GRB order, ensure load resistor on data is present or place your own)
+![Assembled weather LED bar showing a rain-alert day](docs/demo.gif)
+
+### Components
+
+- **ESP32 controller** — [D1 Mini NodeMCU ESP32-WROOM-32](https://www.amazon.com/dp/B08L5XFWN6) (sold in 3-packs)
+- **LED strip** — [BTF-LIGHTING WS2812B ECO 100 LED/m, IP30](https://www.amazon.com/dp/B088B8G8LD) — cut to the number of LEDs you need (default 6, max 16); wired to GPIO 23 (GRB order, include a load resistor on the data line)
+- **LED channel/case** — [LED bar graph enclosure (MakerWorld, 3D-printable)](https://makerworld.com/en/models/2452077-led-bar-graph)
+- **D1 Mini case** — many options exist on MakerWorld/Printables; choice depends on your board variant and header configuration
 
 ## Color Scale
 

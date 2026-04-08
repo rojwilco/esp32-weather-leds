@@ -305,7 +305,7 @@ void pollDemoMode() {
 
     if (i == freezeIdx)
       forecast[i].tempMin    = cfg_freeze_thr - 1.0f;
-    if (i == rainIdx)
+    if (i == rainIdx || (n % 2 == 0 && i == rainIdx - 1))
       forecast[i].precipProb = cfg_precip_thr + 10.0f;
     if (i == heatIdx)
       forecast[i].tempMax    = cfg_heat_thr + 1.0f;

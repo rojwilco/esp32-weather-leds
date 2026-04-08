@@ -64,15 +64,31 @@ TEST_F(DemoModeTest, FreezeAlertAtIndex0) {
     EXPECT_EQ(ledStates[0].alert, ALERT_FREEZE);
 }
 
-// Description: LED n/2 (middle) receives ALERT_RAIN in demo mode with n=6, so
-// the rain indicator appears at index 3, centered between cold and hot ends.
-TEST_F(DemoModeTest, RainAlertAtMiddle) {
+// Description: With an even LED count (n=6), the two middle LEDs (n/2-1 and n/2)
+// both receive ALERT_RAIN so the rain indicator is visually balanced around centre.
+TEST_F(DemoModeTest, RainAlertBothMiddleLedsWhenEven) {
     RecordProperty("description",
-        "LED n/2 (middle) receives ALERT_RAIN in demo mode with n=6, so the "
-        "rain indicator appears at index 3, centered between cold and hot ends.");
+        "With an even LED count (n=6), the two middle LEDs (n/2-1 and n/2) "
+        "both receive ALERT_RAIN so the rain indicator is visually balanced around centre.");
+    // DEFAULT_NUM_LEDS == 6, which is even
     pollDemoMode();
-    int midIdx = cfg_num_leds / 2;
-    EXPECT_EQ(ledStates[midIdx].alert, ALERT_RAIN);
+    EXPECT_EQ(ledStates[cfg_num_leds / 2 - 1].alert, ALERT_RAIN) << "lower middle LED";
+    EXPECT_EQ(ledStates[cfg_num_leds / 2    ].alert, ALERT_RAIN) << "upper middle LED";
+}
+
+// Description: With an odd LED count (n=7), only the single exact middle LED (n/2)
+// receives ALERT_RAIN; the LEDs on either side are unaffected.
+TEST_F(DemoModeTest, RainAlertSingleMiddleLedWhenOdd) {
+    RecordProperty("description",
+        "With an odd LED count (n=7), only the single exact middle LED (n/2) "
+        "receives ALERT_RAIN; the LEDs on either side are unaffected.");
+    cfg_num_leds = 7;
+    pollDemoMode();
+    int mid = cfg_num_leds / 2;  // index 3
+    EXPECT_EQ(ledStates[mid].alert, ALERT_RAIN) << "middle LED should be rain";
+    // neighbours should not be rain (unless gradient happens to cross freeze threshold)
+    EXPECT_NE(ledStates[mid - 1].alert, ALERT_RAIN) << "LED below middle should not be rain";
+    EXPECT_NE(ledStates[mid + 1].alert, ALERT_RAIN) << "LED above middle should not be rain";
 }
 
 // Description: LED n-1 (hottest end) receives ALERT_HEAT in demo mode with n=6,
@@ -85,15 +101,16 @@ TEST_F(DemoModeTest, HeatAlertAtLastIndex) {
     EXPECT_EQ(ledStates[cfg_num_leds - 1].alert, ALERT_HEAT);
 }
 
-// Description: The rain alert index scales dynamically with cfg_num_leds; with
-// n=8 it lands at index 4, confirming the middle placement is not hard-coded.
-TEST_F(DemoModeTest, RainIndexScalesWithLedCount) {
+// Description: The rain alert indices scale dynamically with cfg_num_leds; with
+// n=8 (even) both middle LEDs (3 and 4) receive ALERT_RAIN.
+TEST_F(DemoModeTest, RainIndicesScaleWithLedCount) {
     RecordProperty("description",
-        "The rain alert index scales dynamically with cfg_num_leds; with n=8 "
-        "it lands at index 4, confirming the middle placement is not hard-coded.");
+        "The rain alert indices scale dynamically with cfg_num_leds; with n=8 "
+        "(even) both middle LEDs (3 and 4) receive ALERT_RAIN.");
     cfg_num_leds = 8;
     pollDemoMode();
-    EXPECT_EQ(ledStates[4].alert, ALERT_RAIN);
+    EXPECT_EQ(ledStates[3].alert, ALERT_RAIN) << "lower middle (n/2-1)";
+    EXPECT_EQ(ledStates[4].alert, ALERT_RAIN) << "upper middle (n/2)";
 }
 
 // ── Show count ────────────────────────────────────────────────────────────────

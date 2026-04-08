@@ -173,7 +173,7 @@ input.clr-hex.invalid{border-color:#a04040}
 <button class="btn poll" type="submit" style="margin-top:.8em">Poll Now</button>
 </form>
 <form method="POST" action="/demo">
-<button class="btn demo%s" type="submit" style="margin-top:.8em">%s</button>
+<button class="btn demo%s" type="submit" style="margin-top:.8em">Demo Mode</button>
 </form>
 </div>
 <hr style="border:none;border-top:2px solid #333;margin:2.5em 0 1.5em">

@@ -430,9 +430,8 @@ void handleRoot() {
            cfg_heat_thr,   heatColorHex,        // nerdy: heat threshold + color
            cfg_precip_thr, rainColorHex,        // nerdy: precip threshold + rain color
            cfg_hold_sec, cfg_alert_hold_sec, cfg_attack_sec, cfg_decay_sec,  // nerdy: timing
-           cfg_wifi_ssid,                  // SSID field
            g_demo_mode ? " on" : "",       // demo button CSS class suffix
-           g_demo_mode ? "Demo Mode: ON" : "Demo Mode: OFF",  // demo button label
+           cfg_wifi_ssid,                  // SSID field
            stationDisplay,                 // station-only section (poll + OTA)
            FIRMWARE_VERSION, FIRMWARE_BUILD_TIMESTAMP,
            ip.c_str(),

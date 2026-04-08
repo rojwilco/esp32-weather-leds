@@ -33,12 +33,15 @@ Latitude/longitude are also set via the web UI.
 ## Architecture
 
 - `setup()` — loads config, initializes FastLED, connects WiFi (dim-orange on failure), starts `WebServer`, prints IP, clears LEDs
-- `loop()` — calls `server.handleClient()` every iteration; polls immediately on boot, then every `cfg_poll_min` minutes; `g_forceRepoll` flag triggers an out-of-schedule poll
-- `loadConfig()` / `saveConfig()` — reads/writes all runtime settings to NVS via `Preferences` (namespace `"wxleds"`)
-- `handleRoot()` — serves the HTML config page (`config_html.h`) with current config values injected via `snprintf`; page adapts based on device mode: AP mode shows only WiFi fields, station mode shows full config
+- `loop()` — calls `server.handleClient()` every iteration; polls immediately on boot, then every `cfg_poll_min` minutes; `g_forceRepoll` flag triggers an out-of-schedule poll; dispatches to `pollDemoMode()` instead of `pollWeather()` when `g_demo_mode` is true
+- `loadConfig()` / `saveConfig()` — reads/writes all runtime settings to NVS via `Preferences` (namespace `"wxleds"`); includes `g_demo_mode` (key `"demo_mode"`)
+- `handleRoot()` — serves the HTML config page (`config_html.h`) with current config values injected via `snprintf`; page adapts based on device mode: AP mode shows only WiFi fields, station mode shows full config. **The order of arguments in the `snprintf` call must exactly match the order of `%` placeholders in `CONFIG_HTML`** — positional format strings give no compile-time protection against mismatches.
 - `handleSave()` — processes POST from the config form, validates inputs, persists settings via `saveConfig()`, applies `FastLED.setBrightness()` immediately; sets `g_forceRepoll` if location or `cfg_num_leds` changed; `cfg_num_leds` is clamped to 1–16
 - `handlePollNow()` — sets `g_forceRepoll = true`, triggering a poll on the next `loop()` iteration
-- `pollWeather()` — fetches `cfg_num_leds` days in one request, sets all LEDs, calls `FastLED.show()` once
+- `handleDemo()` — toggles `g_demo_mode`, saves to NVS, sets `g_forceRepoll = true`, redirects to `/`
+- `applyForecast()` — shared helper called by both `pollWeather()` (on success) and `pollDemoMode()`; initialises `ledStates[]` and `leds[]` from a `DayForecast` array using the alert priority logic (rain > freeze > heat); does not call `FastLED.show()`
+- `pollWeather()` — fetches `cfg_num_leds` days in one request, calls `applyForecast()`, calls `FastLED.show()` once
+- `pollDemoMode()` — builds a synthetic `DayForecast` array without any network access and calls `applyForecast()` + `FastLED.show()`. Each LED gets a `tempAvg` interpolated linearly from `cfg_cold_temp` (LED 0) to `cfg_hot_temp` (LED n−1), with `tempMax = tAvg + 5` and `tempMin = tAvg − 5`. Alert LEDs are seeded as: freeze at index 0 (`tempMin = cfg_freeze_thr − 1`), rain at index `n/2` (`precipProb = cfg_precip_thr + 10`), heat at index `n−1` (`tempMax = cfg_heat_thr + 1`). Because the gradient's `tempMin` values can also fall below `cfg_freeze_thr` on the cold end (and `tempMax` above `cfg_heat_thr` on the hot end), **multiple LEDs may animate an alert in demo mode** — this is intentional: it lets users see exactly how threshold and range changes affect the display without fetching live data.
 - `fetchForecast()` — HTTPS GET to Open-Meteo using `cfg_latitude`/`cfg_longitude`, filters JSON for max/min/precip arrays, computes daily averages
 - `tempToColor()` — maps °F to CHSV using runtime bounds: `cfg_cold_temp`→hue 160 (blue, default 20°F), `cfg_hot_temp`→hue 0 (red, default 90°F)
 
@@ -84,9 +87,13 @@ Test suites:
 - `test_fetch_forecast` — JSON parsing, HTTP error handling
 - `test_poll_weather` — alert logic and LED state after a poll
 - `test_animations` — per-tick fade/blend animation state machine
-- `test_handle_root` — `handleRoot()` rendering: HTTP 200, buffer not truncated, country select present with US default, config values injected, firmware version and build timestamp present in footer
+- `test_animation_cycles` — multi-cycle animation behaviour
+- `test_handle_root` — `handleRoot()` rendering: HTTP 200, buffer not truncated, country select present with US default, config values injected, firmware version and build timestamp present in footer, demo mode button present and `snprintf` arg ordering correct
 - `test_handle_save` — `handleSave()` logic: location-change repoll flag, brightness/poll_min clamping, cold/hot temp correction, 303 redirect, NVS persistence
 - `test_handle_scan` — WiFi scan JSON output: sorting by RSSI, deduplication
+- `test_handle_ota` — OTA upload handler
+- `test_hostname` — DHCP hostname generation from MAC address
+- `test_demo_mode` — `pollDemoMode()` gradient endpoints, alert placement, show count, `handleDemo()` toggle behaviour
 
 To add a new test file, create `tests/test_<name>.cpp` and add `add_sketch_test(test_<name>.cpp)` to `tests/CMakeLists.txt`.
 
@@ -226,4 +233,5 @@ No manual upload is needed — pushing the tag is the complete release action.
 - **ArduinoJson v7 only.** Filter arrays with `filter["daily"]["temperature_2m_max"][0] = true` (the `[0]` is required to retain the whole array). Access via `.as<JsonArray>()`.
 - **Single `FastLED.show()` per poll cycle** — per-LED calls cause flicker.
 - **`forecast_days` equals `cfg_num_leds`** — the runtime config value (not a compile-time constant) controls both the LED count and the number of forecast days requested from the API.
-- **`handleRoot()` page buffer is `static`** — the buffer must remain `static char page[...]` (currently 12 KB) to avoid a stack overflow in the WebServer callback. The ESP32 loop task stack is ~8 KB total; a plain local allocation of that size crashes the device. The `static` keyword is what matters; the buffer size may be grown as needed.
+- **`handleRoot()` page buffer is `static`** — the buffer must remain `static char page[...]` (currently 17 KB) to avoid a stack overflow in the WebServer callback. The ESP32 loop task stack is ~8 KB total; a plain local allocation of that size crashes the device. The `static` keyword is what matters; the buffer size may be grown as needed.
+- **`snprintf` argument order must match template placeholder order** — `CONFIG_HTML` uses positional C format specifiers (`%s`, `%d`, `%.1f`, …). The arguments passed to `snprintf` in `handleRoot()` must appear in exactly the same order as their corresponding `%` placeholders in the template. There is no compile-time check for mismatches; adding a new placeholder in the middle of the template without inserting its argument at the matching position will silently inject wrong values into wrong fields. When adding a new placeholder, count its position in the template and insert the argument at the same position in the `snprintf` call.

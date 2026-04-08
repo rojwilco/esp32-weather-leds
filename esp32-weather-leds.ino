@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (c) 2026 rojwilco
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>

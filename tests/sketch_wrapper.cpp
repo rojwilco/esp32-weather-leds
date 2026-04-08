@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (c) 2026 rojwilco
 // sketch_wrapper.cpp — compiles esp32-weather-leds.ino under the host test harness.
 //
 // Include order matters:

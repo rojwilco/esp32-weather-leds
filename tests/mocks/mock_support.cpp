@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (c) 2026 rojwilco
+// AI-assisted: generated with Claude (Anthropic); human conception, review, guidance and output approval by rojwilco.
 // Definitions for all extern globals declared in the mock headers.
 // This file is compiled into every test executable via sketch_lib.
 

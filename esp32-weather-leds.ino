@@ -531,6 +531,7 @@ void handleSave() {
   saveConfig();
   if (locationChanged) g_forceRepoll = true;
   if (wifiChanged)     g_pendingConnect = true;
+  if (g_demo_mode)     g_forceRepoll = true;  // any setting change reruns the demo
 
   server.sendHeader("Location", "/");
   server.send(303);

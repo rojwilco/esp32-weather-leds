@@ -14,6 +14,7 @@ struct Preferences {
     void end() {}
 
     // ── getters ───────────────────────────────────────────────────────────────
+    bool     getBool(const char* key, bool def = false) const        { return get_or<uint8_t>(key, def ? 1 : 0) != 0; }
     uint8_t  getUChar(const char* key, uint8_t  def = 0) const      { return get_or(key, def); }
     uint16_t getUShort(const char* key, uint16_t def = 0) const     { return get_or(key, def); }
     uint32_t getUInt(const char* key, uint32_t def = 0) const       { return get_or(key, def); }
@@ -24,6 +25,7 @@ struct Preferences {
     }
 
     // ── putters ───────────────────────────────────────────────────────────────
+    void putBool(const char* key,   bool     v) { g_mock_prefs_store[key] = v ? "1" : "0"; }
     void putUChar(const char* key,  uint8_t  v) { g_mock_prefs_store[key] = std::to_string(v); }
     void putUShort(const char* key, uint16_t v) { g_mock_prefs_store[key] = std::to_string(v); }
     void putUInt(const char* key,   uint32_t v) { g_mock_prefs_store[key] = std::to_string(v); }

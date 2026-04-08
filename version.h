@@ -2,8 +2,8 @@
 #include <stdint.h>
 
 #define FW_VERSION_MAJOR 1
-#define FW_VERSION_MINOR 7
-#define FW_VERSION_PATCH 1
+#define FW_VERSION_MINOR 8
+#define FW_VERSION_PATCH 0
 
 #define FW_VERSION_INT \
     ((uint32_t)(FW_VERSION_MAJOR) << 16 | \

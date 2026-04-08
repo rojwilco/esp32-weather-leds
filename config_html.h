@@ -15,6 +15,8 @@ input[type=number],input[type=text],input[type=password]{width:100%%;box-sizing:
 .save{background:#1e7a4a;color:#fff;border:none;border-radius:4px;transition:background .2s}
 .save.dirty{background:#b06000}
 .poll{background:#4a3a7a;color:#fff;border:none;border-radius:4px}
+.demo{background:#1a4a7a;color:#fff;border:none;border-radius:4px}
+.demo.on{background:#7a3a00}
 .footer{margin-top:2em;font-size:.8em;color:#555}
 select{width:100%%;box-sizing:border-box;background:#2a2a2a;color:#e0e0e0;border:1px solid #444;border-radius:4px;padding:.4em;font-size:1em}
 .locrow{display:grid;grid-template-columns:auto 1fr auto;gap:.5em;margin-top:.5em;align-items:center}
@@ -169,6 +171,9 @@ input.clr-hex.invalid{border-color:#a04040}
 </form>
 <form method="POST" action="/poll">
 <button class="btn poll" type="submit" style="margin-top:.8em">Poll Now</button>
+</form>
+<form method="POST" action="/demo">
+<button class="btn demo%s" type="submit" style="margin-top:.8em">%s</button>
 </form>
 </div>
 <hr style="border:none;border-top:2px solid #333;margin:2.5em 0 1.5em">

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (c) 2026 rojwilco
+// AI-assisted: generated with Claude (Anthropic); human conception, review, guidance and output approval by rojwilco.
 #include <gtest/gtest.h>
 #include <vector>
 #include "sketch_api.h"

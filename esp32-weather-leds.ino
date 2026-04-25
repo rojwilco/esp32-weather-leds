@@ -72,6 +72,7 @@ WebServer   server(80);
 bool g_forceRepoll    = false;
 bool g_ap_mode        = false;
 bool g_pendingConnect = false;
+bool g_demo_mode      = false;
 
 #ifndef UNIT_TESTING
 static DNSServer dnsServer;
@@ -121,6 +122,7 @@ void loadConfig() {
   cfg_freeze_color    = prefs.getUInt("freeze_clr",  DEFAULT_FREEZE_COLOR);
   cfg_heat_color      = prefs.getUInt("heat_clr",    DEFAULT_HEAT_COLOR);
   cfg_rain_color      = prefs.getUInt("rain_clr",    DEFAULT_RAIN_COLOR);
+  g_demo_mode         = prefs.getBool("demo_mode",   false);
   prefs.end();
   Serial.printf("Config: leds=%d brt=%d poll=%dmin cold=%.1f hot=%.1f lat=%s lon=%s ssid=%s hold=%.2fs ahld=%.2fs atk=%.2fs dcy=%.2fs\n",
                 cfg_num_leds, cfg_brightness, cfg_poll_min, cfg_cold_temp, cfg_hot_temp,
@@ -148,6 +150,7 @@ void saveConfig() {
   prefs.putUInt("freeze_clr",  cfg_freeze_color);
   prefs.putUInt("heat_clr",    cfg_heat_color);
   prefs.putUInt("rain_clr",    cfg_rain_color);
+  prefs.putBool("demo_mode",   g_demo_mode);
   prefs.end();
 }
 
@@ -224,6 +227,45 @@ bool fetchForecast(DayForecast* outDays) {
   return true;
 }
 
+// Applies a forecast array to ledStates[] and leds[]; call FastLED.show() after.
+void applyForecast(DayForecast* forecast) {
+  unsigned long now = millis();
+  for (int i = 0; i < cfg_num_leds; i++) {
+    CRGB base = tempToColor(forecast[i].tempAvg);
+
+    AlertType alert;
+    CRGB alertColor;
+    if (forecast[i].precipProb >= cfg_precip_thr) {
+      alert      = ALERT_RAIN;
+      alertColor = CRGB((cfg_rain_color >> 16) & 0xFF, (cfg_rain_color >> 8) & 0xFF, cfg_rain_color & 0xFF);
+    } else if (forecast[i].tempMin <= cfg_freeze_thr) {
+      alert      = ALERT_FREEZE;
+      alertColor = CRGB((cfg_freeze_color >> 16) & 0xFF, (cfg_freeze_color >> 8) & 0xFF, cfg_freeze_color & 0xFF);
+    } else if (forecast[i].tempMax >= cfg_heat_thr) {
+      alert      = ALERT_HEAT;
+      alertColor = CRGB((cfg_heat_color >> 16) & 0xFF, (cfg_heat_color >> 8) & 0xFF, cfg_heat_color & 0xFF);
+    } else {
+      alert      = ALERT_NONE;
+      alertColor = CRGB::Black;
+    }
+
+    ledStates[i].baseColor       = base;
+    ledStates[i].alertColor      = alertColor;
+    ledStates[i].alert           = alert;
+    ledStates[i].blendAmt        = 0;
+    ledStates[i].fadeDir         = 1;
+    ledStates[i].lastTick        = now;
+    ledStates[i].holdUntil       = now + (unsigned long)(cfg_hold_sec * 1000.0f);
+    ledStates[i].alertHoldUntil  = 0;
+
+    leds[i] = base;
+  }
+  for (int i = cfg_num_leds; i < MAX_LEDS; i++) {
+    leds[i] = CRGB::Black;
+    ledStates[i].alert = ALERT_NONE;
+  }
+}
+
 bool pollWeather() {
   DayForecast forecast[MAX_LEDS];
 
@@ -231,41 +273,7 @@ bool pollWeather() {
   bool ok = fetchForecast(forecast);
 
   if (ok) {
-    unsigned long now = millis();
-    for (int i = 0; i < cfg_num_leds; i++) {
-      CRGB base = tempToColor(forecast[i].tempAvg);
-
-      AlertType alert;
-      CRGB alertColor;
-      if (forecast[i].precipProb >= cfg_precip_thr) {
-        alert      = ALERT_RAIN;
-        alertColor = CRGB((cfg_rain_color >> 16) & 0xFF, (cfg_rain_color >> 8) & 0xFF, cfg_rain_color & 0xFF);
-      } else if (forecast[i].tempMin <= cfg_freeze_thr) {
-        alert      = ALERT_FREEZE;
-        alertColor = CRGB((cfg_freeze_color >> 16) & 0xFF, (cfg_freeze_color >> 8) & 0xFF, cfg_freeze_color & 0xFF);
-      } else if (forecast[i].tempMax >= cfg_heat_thr) {
-        alert      = ALERT_HEAT;
-        alertColor = CRGB((cfg_heat_color >> 16) & 0xFF, (cfg_heat_color >> 8) & 0xFF, cfg_heat_color & 0xFF);
-      } else {
-        alert      = ALERT_NONE;
-        alertColor = CRGB::Black;
-      }
-
-      ledStates[i].baseColor  = base;
-      ledStates[i].alertColor = alertColor;
-      ledStates[i].alert      = alert;
-      ledStates[i].blendAmt   = 0;
-      ledStates[i].fadeDir    = 1;
-      ledStates[i].lastTick        = now;
-      ledStates[i].holdUntil       = now + (unsigned long)(cfg_hold_sec * 1000.0f);
-      ledStates[i].alertHoldUntil  = 0;
-
-      leds[i] = base;
-    }
-    for (int i = cfg_num_leds; i < MAX_LEDS; i++) {
-      leds[i] = CRGB::Black;
-      ledStates[i].alert = ALERT_NONE;
-    }
+    applyForecast(forecast);
   } else {
     Serial.println("pollWeather: fetch failed, showing dim white");
     fill_solid(leds, cfg_num_leds, CRGB(10, 10, 10));
@@ -280,6 +288,35 @@ bool pollWeather() {
 
   FastLED.show();
   return ok;
+}
+
+// Drives LEDs with a synthetic cold→hot gradient plus freeze/rain/heat alerts,
+// with no network access required.
+void pollDemoMode() {
+  DayForecast forecast[MAX_LEDS];
+  int n = cfg_num_leds;
+
+  // Alert LEDs: freeze at coldest end, heat at hottest end, rain in the middle.
+  int freezeIdx = 0;
+  int rainIdx   = n / 2;
+  int heatIdx   = n - 1;
+
+  for (int i = 0; i < n; i++) {
+    float frac  = (n > 1) ? (float)i / (float)(n - 1) : 0.5f;
+    float tAvg  = cfg_cold_temp + frac * (cfg_hot_temp - cfg_cold_temp);
+    forecast[i] = { tAvg + 5.0f, tAvg - 5.0f, tAvg, 0.0f };
+
+    if (i == freezeIdx)
+      forecast[i].tempMin    = cfg_freeze_thr - 1.0f;
+    if (i == rainIdx || (n % 2 == 0 && i == rainIdx - 1))
+      forecast[i].precipProb = cfg_precip_thr + 10.0f;
+    if (i == heatIdx)
+      forecast[i].tempMax    = cfg_heat_thr + 1.0f;
+  }
+
+  Serial.println("pollDemoMode: applying demo forecast");
+  applyForecast(forecast);
+  FastLED.show();
 }
 
 void tickAnimations() {
@@ -323,6 +360,7 @@ void tickAnimations() {
 void handleRoot();
 void handleSave();
 void handleScan();
+void handleDemo();
 void handleOtaUpdate();
 void handleOtaUpload();
 
@@ -358,6 +396,7 @@ void startAPMode() {
   server.on("/",     HTTP_GET,  handleRoot);
   server.on("/save", HTTP_POST, handleSave);
   server.on("/scan", HTTP_GET,  handleScan);
+  server.on("/demo", HTTP_POST, handleDemo);
   // Captive portal: redirect all other paths to the config page
   server.onNotFound([]() {
     server.sendHeader("Location", "http://192.168.4.1/");
@@ -394,6 +433,7 @@ void handleRoot() {
            cfg_heat_thr,   heatColorHex,        // nerdy: heat threshold + color
            cfg_precip_thr, rainColorHex,        // nerdy: precip threshold + rain color
            cfg_hold_sec, cfg_alert_hold_sec, cfg_attack_sec, cfg_decay_sec,  // nerdy: timing
+           g_demo_mode ? " on" : "",       // demo button CSS class suffix
            cfg_wifi_ssid,                  // SSID field
            stationDisplay,                 // station-only section (poll + OTA)
            FIRMWARE_VERSION, FIRMWARE_BUILD_TIMESTAMP,
@@ -494,12 +534,21 @@ void handleSave() {
   saveConfig();
   if (locationChanged) g_forceRepoll = true;
   if (wifiChanged)     g_pendingConnect = true;
+  if (g_demo_mode)     g_forceRepoll = true;  // any setting change reruns the demo
 
   server.sendHeader("Location", "/");
   server.send(303);
 }
 
 void handlePollNow() {
+  g_forceRepoll = true;
+  server.sendHeader("Location", "/");
+  server.send(303);
+}
+
+void handleDemo() {
+  g_demo_mode = !g_demo_mode;
+  saveConfig();
   g_forceRepoll = true;
   server.sendHeader("Location", "/");
   server.send(303);
@@ -624,6 +673,7 @@ void setup() {
   server.on("/",       HTTP_GET,  handleRoot);
   server.on("/save",   HTTP_POST, handleSave);
   server.on("/poll",   HTTP_POST, handlePollNow);
+  server.on("/demo",   HTTP_POST, handleDemo);
   server.on("/scan",   HTTP_GET,  handleScan);
   server.on("/update", HTTP_POST, handleOtaUpdate, handleOtaUpload);
   server.begin();
@@ -665,6 +715,7 @@ void loop() {
         g_ap_mode = false;
         Serial.printf("Connected! IP: %s\n", WiFi.localIP().toString().c_str());
         server.on("/poll",   HTTP_POST, handlePollNow);
+        server.on("/demo",   HTTP_POST, handleDemo);
         server.on("/update", HTTP_POST, handleOtaUpdate, handleOtaUpload);
         fill_solid(leds, MAX_LEDS, CRGB(0, 0, 0));
         FastLED.show();
@@ -690,13 +741,18 @@ void loop() {
   if (firstRun || g_forceRepoll || (millis() - lastPollTime >= pollMs)) {
     firstRun = false;
     g_forceRepoll = false;
-    bool ok = pollWeather();
-    // On success, reset the full poll interval.  On failure, retry after 1 min
-    // so transient network errors don't leave the display stuck for cfg_poll_min.
-    if (ok) {
+    if (g_demo_mode) {
+      pollDemoMode();
       lastPollTime = millis();
     } else {
-      lastPollTime = millis() - pollMs + 60UL * 1000UL;
+      bool ok = pollWeather();
+      // On success, reset the full poll interval.  On failure, retry after 1 min
+      // so transient network errors don't leave the display stuck for cfg_poll_min.
+      if (ok) {
+        lastPollTime = millis();
+      } else {
+        lastPollTime = millis() - pollMs + 60UL * 1000UL;
+      }
     }
   }
 

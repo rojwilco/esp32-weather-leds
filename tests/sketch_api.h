@@ -93,17 +93,21 @@ extern LEDState ledStates[MAX_LEDS];
 extern bool     g_forceRepoll;
 extern bool     g_ap_mode;
 extern bool     g_pendingConnect;
+extern bool     g_demo_mode;
 
 // ── Sketch functions (defined in sketch_wrapper.cpp via sketch_lib) ───────────
 CRGB tempToColor(float tempF);
 bool fetchForecast(DayForecast* outDays);
+void applyForecast(DayForecast* forecast);
 bool pollWeather();
+void pollDemoMode();
 void tickAnimations();
 void applyHostname();
 void startAPMode();
 void handleRoot();
 void handleSave();
 void handlePollNow();
+void handleDemo();
 void handleScan();
 void handleOtaUpdate();
 void handleOtaUpload();

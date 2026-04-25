@@ -27,7 +27,8 @@ protected:
         cfg_rain_color      = DEFAULT_RAIN_COLOR;
         strncpy(cfg_wifi_ssid, DEFAULT_WIFI_SSID, sizeof(cfg_wifi_ssid));
         strncpy(cfg_wifi_pass, DEFAULT_WIFI_PASS, sizeof(cfg_wifi_pass));
-        g_ap_mode = false;
+        g_ap_mode   = false;
+        g_demo_mode = false;
         g_mock_last_send_code = 0;
         g_mock_last_send_body = "";
     }
@@ -330,6 +331,46 @@ TEST_F(HandleRootTest, SyncColorHexFunctionPresent) {
     ASSERT_NE(resetPos, std::string::npos);
     size_t syncInReset = body.find("syncColorHex", resetPos);
     EXPECT_NE(syncInReset, std::string::npos) << "syncColorHex not called inside resetThresholdDefaults";
+}
+
+// Description: handleRoot() renders a Demo Mode button that posts to /demo,
+// confirming the button is present and labelled "Demo Mode" at all times.
+TEST_F(HandleRootTest, DemoModeButtonPresent) {
+    RecordProperty("description",
+        "handleRoot() renders a Demo Mode button that posts to /demo, "
+        "confirming the button is present and labelled \"Demo Mode\" at all times.");
+    handleRoot();
+    std::string body = g_mock_last_send_body.c_str();
+    EXPECT_NE(body.find("action=\"/demo\""), std::string::npos) << "demo form action missing";
+    EXPECT_NE(body.find("Demo Mode"),        std::string::npos) << "Demo Mode label missing";
+}
+
+// Description: When g_demo_mode=true the demo button carries class "on" and the
+// cfg_wifi_ssid value appears in the SSID input, not in the demo button — verifying
+// the snprintf argument order matches the template's placeholder order.
+TEST_F(HandleRootTest, DemoModeClassAndSsidInCorrectPositions) {
+    RecordProperty("description",
+        "When g_demo_mode=true the demo button carries class \"on\" and the "
+        "cfg_wifi_ssid value appears in the SSID input, not in the demo button — "
+        "verifying the snprintf argument order matches the template's placeholder order.");
+    g_demo_mode = true;
+    strncpy(cfg_wifi_ssid, "MyHomeNet", sizeof(cfg_wifi_ssid));
+    handleRoot();
+    std::string body = g_mock_last_send_body.c_str();
+
+    // Button must have the "on" class when demo mode is active.
+    EXPECT_NE(body.find("btn demo on"), std::string::npos) << "demo button missing 'on' class";
+
+    // The SSID value must appear after the demo button, not inside it.
+    size_t demoPos = body.find("action=\"/demo\"");
+    size_t ssidPos = body.find("MyHomeNet");
+    ASSERT_NE(demoPos, std::string::npos) << "demo form missing";
+    ASSERT_NE(ssidPos, std::string::npos) << "SSID value missing from page";
+    EXPECT_GT(ssidPos, demoPos) << "SSID value appeared before the demo button (arg order bug)";
+
+    // The SSID value must not appear inside the demo button element.
+    size_t demoEndPos = body.find("</form>", demoPos);
+    EXPECT_GT(ssidPos, demoEndPos) << "SSID value landed inside the demo button form (arg order bug)";
 }
 
 // Description: handleRoot() renders a resetThresholdDefaults() JS function with

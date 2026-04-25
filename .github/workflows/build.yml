@@ -42,6 +42,18 @@ jobs:
       - name: Compile sketch
         run: arduino-cli compile --fqbn esp32:esp32:d1_mini32 --export-binaries .
 
+      - name: Report binary size
+        run: |
+          BIN=build/esp32.esp32.d1_mini32/esp32-weather-leds.ino.bin
+          SIZE=$(wc -c < "$BIN")
+          LIMIT=1310720   # default d1_mini32 OTA slot = 0x140000 bytes
+          PCT=$(( SIZE * 100 / LIMIT ))
+          echo "Binary size : $(numfmt --grouping $SIZE) bytes  (${PCT}% of ${LIMIT} byte OTA slot)"
+          if [ $SIZE -gt $LIMIT ]; then
+            echo "ERROR: binary exceeds OTA slot — see partition scheme options in CLAUDE.md"
+            exit 1
+          fi
+
       - name: Rename binary with version
         run: |
           MAJOR=$(grep '#define FW_VERSION_MAJOR' version.h | awk '{print $3}')
@@ -99,8 +111,12 @@ jobs:
             --export-binaries \
             --build-property "compiler.cpp.extra_flags=-DFW_VERSION_SUFFIX=\"\"" \
             .
-          cp build/esp32.esp32.d1_mini32/esp32-weather-leds.ino.bin \
-             esp32-weather-leds-v${VERSION}.bin
+          BIN=build/esp32.esp32.d1_mini32/esp32-weather-leds.ino.bin
+          SIZE=$(wc -c < "$BIN")
+          LIMIT=1310720
+          PCT=$(( SIZE * 100 / LIMIT ))
+          echo "Binary size : $(numfmt --grouping $SIZE) bytes  (${PCT}% of ${LIMIT} byte OTA slot)"
+          cp "$BIN" esp32-weather-leds-v${VERSION}.bin
 
       - name: Create GitHub Release
         run: |

@@ -27,6 +27,7 @@ protected:
         cfg_rain_color      = DEFAULT_RAIN_COLOR;
         strncpy(cfg_wifi_ssid, DEFAULT_WIFI_SSID, sizeof(cfg_wifi_ssid));
         strncpy(cfg_wifi_pass, DEFAULT_WIFI_PASS, sizeof(cfg_wifi_pass));
+        g_demo_mode      = false;
         g_forceRepoll    = false;
         g_pendingConnect = false;
         g_mock_server_args.clear();
@@ -502,6 +503,20 @@ TEST_F(HandleSaveTest, ChangedAlertColorSetsRepoll) {
         "Changing an alert color sets g_forceRepoll so the LED flash color "
         "updates immediately without waiting for the next scheduled poll.");
     g_mock_server_args["freeze_color"] = "#ff0000";  // different from default
+    handleSave();
+    EXPECT_TRUE(g_forceRepoll);
+}
+
+// Description: When g_demo_mode is true, handleSave() sets g_forceRepoll=true
+// even for a change (poll_min) that would not otherwise trigger a repoll, so
+// the demo display immediately reflects the updated settings.
+TEST_F(HandleSaveTest, DemoModeSaveAlwaysForceRepolls) {
+    RecordProperty("description",
+        "When g_demo_mode is true, handleSave() sets g_forceRepoll=true even "
+        "for a change (poll_min) that would not otherwise trigger a repoll, so "
+        "the demo display immediately reflects the updated settings.");
+    g_demo_mode = true;
+    g_mock_server_args["poll_min"] = "30";  // same as default — no repoll without demo mode
     handleSave();
     EXPECT_TRUE(g_forceRepoll);
 }

@@ -59,6 +59,24 @@ Bounds default to 20°F (cold/blue) and 90°F (hot/red) and are configurable via
 
 Settings are saved to flash (NVS) and persist across reboots. The "Poll Now" button forces an immediate weather fetch.
 
+## Demo Mode
+
+The **Demo Mode** button on the config page switches the device into a mode that drives LEDs without any WiFi or weather API access. Useful for:
+
+- Testing LED wiring and verifying the full color spectrum
+- Tuning alert thresholds and color bounds without waiting for a real forecast
+- Retail or exhibition display
+
+In demo mode all LEDs show a smooth cold→hot gradient (blue to red) spanning `cfg_cold_temp` to `cfg_hot_temp`. Alert animations fire wherever the gradient naturally crosses a configured threshold — each LED uses a ±5°F daily spread around its gradient midpoint, so:
+
+- **Freeze** — LEDs at the cold end whose gradient temperature minus 5°F falls at or below `cfg_freeze_thr` pulse the freeze alert color. With defaults (cold=20°F, freeze threshold=32°F) this affects the coldest two or three LEDs depending on how many are configured.
+- **Rain** — the middle LED (`n/2`) always pulses the rain alert color.
+- **Heat** — LEDs at the hot end whose gradient temperature plus 5°F meets or exceeds `cfg_heat_thr` pulse the heat alert color.
+
+Because alerts fire based on the live threshold settings, adjusting **Cold/Hot color bounds** or any **Alert threshold** in the config page and saving will immediately update which LEDs blink on the next poll cycle — letting you preview exactly how real weather data will behave before pointing the device at a live forecast.
+
+Demo mode is saved to NVS and persists across reboots. Pressing **Demo Mode** again returns to normal weather polling.
+
 ## Data Source
 
 [Open-Meteo](https://open-meteo.com/) — free, no API key required.

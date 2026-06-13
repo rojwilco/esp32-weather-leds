@@ -127,6 +127,48 @@ TEST_F(FetchForecastTest, MissingPrecipArrayDefaultsToZero) {
         EXPECT_FLOAT_EQ(days[i].precipProb, 0.0f) << "Day " << i;
 }
 
+// Description: A null element in temperature_2m_max marks that day as invalid
+// so a missing value is never silently promoted to 0°F and triggers a false
+// freeze alert; adjacent valid days are unaffected.
+TEST_F(FetchForecastTest, NullMaxElementDisablesThatDay) {
+    RecordProperty("description",
+        "A null element in temperature_2m_max marks that day as invalid so a "
+        "missing value is never silently promoted to 0F and triggers a false "
+        "freeze alert; adjacent valid days are unaffected.");
+    g_mock_http_payload = String(R"({
+      "daily": {
+        "temperature_2m_max": [85.0, null, 78.0, 65.0, 72.0, 88.0],
+        "temperature_2m_min": [70.0, 75.0, 60.0, 50.0, 55.0, 72.0],
+        "precipitation_probability_max": [10.0, 20.0, 30.0, 40.0, 50.0, 60.0]
+      }
+    })");
+    DayForecast days[DEFAULT_NUM_LEDS];
+    ASSERT_TRUE(fetchForecast(days));
+    EXPECT_FALSE(days[1].valid) << "null max element should mark day invalid";
+    EXPECT_TRUE(days[0].valid) << "adjacent day should remain valid";
+    EXPECT_TRUE(days[2].valid) << "adjacent day should remain valid";
+}
+
+// Description: A null element in temperature_2m_min marks that day as invalid
+// so a missing low temperature cannot falsely trigger a freeze alert.
+TEST_F(FetchForecastTest, NullMinElementDisablesThatDay) {
+    RecordProperty("description",
+        "A null element in temperature_2m_min marks that day as invalid so a "
+        "missing low temperature cannot falsely trigger a freeze alert.");
+    g_mock_http_payload = String(R"({
+      "daily": {
+        "temperature_2m_max": [85.0, 90.0, 78.0, 65.0, 72.0, 88.0],
+        "temperature_2m_min": [70.0, null, 60.0, 50.0, 55.0, 72.0],
+        "precipitation_probability_max": [10.0, 20.0, 30.0, 40.0, 50.0, 60.0]
+      }
+    })");
+    DayForecast days[DEFAULT_NUM_LEDS];
+    ASSERT_TRUE(fetchForecast(days));
+    EXPECT_FALSE(days[1].valid) << "null min element should mark day invalid";
+    EXPECT_TRUE(days[0].valid) << "adjacent day should remain valid";
+    EXPECT_TRUE(days[2].valid) << "adjacent day should remain valid";
+}
+
 // Description: Changing cfg_latitude/cfg_longitude to non-US coordinates does
 // not affect JSON parsing; the API response structure is location-independent.
 TEST_F(FetchForecastTest, DifferentLocationStillParses) {

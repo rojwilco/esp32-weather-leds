@@ -53,6 +53,7 @@ struct DayForecast {
     float tempMin;
     float tempAvg;
     float precipProb;
+    bool  valid = true;
 };
 
 enum AlertType { ALERT_NONE, ALERT_HEAT, ALERT_FREEZE, ALERT_RAIN };

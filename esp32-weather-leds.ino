@@ -83,6 +83,7 @@ struct DayForecast {
   float tempMin;
   float tempAvg;
   float precipProb;  // 0–100
+  bool  valid = true;
 };
 
 enum AlertType { ALERT_NONE, ALERT_HEAT, ALERT_FREEZE, ALERT_RAIN };
@@ -215,10 +216,17 @@ bool fetchForecast(DayForecast* outDays) {
   }
 
   for (int i = 0; i < cfg_num_leds; i++) {
-    outDays[i].tempMax    = maxArr[i].as<float>();
-    outDays[i].tempMin    = minArr[i].as<float>();
-    outDays[i].tempAvg    = (outDays[i].tempMax + outDays[i].tempMin) / 2.0f;
-    outDays[i].precipProb = precipArr.isNull() ? 0.0f : precipArr[i].as<float>();
+    if (maxArr[i].isNull() || minArr[i].isNull()) {
+      Serial.printf("  day %d: null temperature from API, LED disabled\n", i);
+      outDays[i].valid = false;
+      continue;
+    }
+    outDays[i].valid     = true;
+    outDays[i].tempMax   = maxArr[i].as<float>();
+    outDays[i].tempMin   = minArr[i].as<float>();
+    outDays[i].tempAvg   = (outDays[i].tempMax + outDays[i].tempMin) / 2.0f;
+    outDays[i].precipProb = (precipArr.isNull() || precipArr[i].isNull())
+                              ? 0.0f : precipArr[i].as<float>();
     Serial.printf("  day %d: max=%.1f  min=%.1f  avg=%.1f  precip=%.0f%%\n",
                   i, outDays[i].tempMax, outDays[i].tempMin,
                   outDays[i].tempAvg, outDays[i].precipProb);
@@ -231,6 +239,11 @@ bool fetchForecast(DayForecast* outDays) {
 void applyForecast(DayForecast* forecast) {
   unsigned long now = millis();
   for (int i = 0; i < cfg_num_leds; i++) {
+    if (!forecast[i].valid) {
+      leds[i] = CRGB(10, 10, 10);
+      ledStates[i].alert = ALERT_NONE;
+      continue;
+    }
     CRGB base = tempToColor(forecast[i].tempAvg);
 
     AlertType alert;

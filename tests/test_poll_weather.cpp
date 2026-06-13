@@ -286,6 +286,35 @@ TEST_F(PollWeatherTest, RainAlertUsesConfiguredColor) {
     EXPECT_EQ(ledStates[0].alertColor.b, 0x77) << "rain alertColor blue";
 }
 
+// ── Null / invalid days ───────────────────────────────────────────────────────
+
+// Description: A DayForecast entry with valid=false produces a dim white LED
+// (10,10,10) with ALERT_NONE, matching the whole-fetch-fail color so it is
+// visually distinguishable from a working LED without looking like a dead LED.
+TEST_F(PollWeatherTest, NullDayShowsDimWhite) {
+    RecordProperty("description",
+        "A DayForecast entry with valid=false produces a dim white LED (10,10,10) "
+        "with ALERT_NONE, matching the whole-fetch-fail color so it is visually "
+        "distinguishable from a working LED without looking like a dead LED.");
+    DayForecast forecast[DEFAULT_NUM_LEDS];
+    for (int i = 0; i < DEFAULT_NUM_LEDS; i++) {
+        forecast[i].tempMax   = 75.0f;
+        forecast[i].tempMin   = 55.0f;
+        forecast[i].tempAvg   = 65.0f;
+        forecast[i].precipProb = 10.0f;
+        forecast[i].valid     = true;
+    }
+    forecast[2].valid = false;
+    applyForecast(forecast);
+    EXPECT_EQ(leds[2].r, 10) << "invalid day LED red";
+    EXPECT_EQ(leds[2].g, 10) << "invalid day LED green";
+    EXPECT_EQ(leds[2].b, 10) << "invalid day LED blue";
+    EXPECT_EQ(ledStates[2].alert, ALERT_NONE) << "invalid day should have no alert";
+    // Adjacent LEDs should be colored normally
+    EXPECT_EQ(ledStates[1].alert, ALERT_NONE);
+    EXPECT_EQ(ledStates[3].alert, ALERT_NONE);
+}
+
 // ── Return value ──────────────────────────────────────────────────────────────
 
 // Description: pollWeather() returns true when fetchForecast() succeeds so

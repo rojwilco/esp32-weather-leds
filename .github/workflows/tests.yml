@@ -38,7 +38,7 @@ jobs:
         run: ctest --test-dir tests/build --output-on-failure
 
       - name: Report test results
-        uses: dorny/test-reporter@v2
+        uses: dorny/test-reporter@v3
         if: ${{ !cancelled() }}
         with:
           name: GoogleTest results

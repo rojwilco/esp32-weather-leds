@@ -74,6 +74,9 @@ bool g_ap_mode        = false;
 bool g_pendingConnect = false;
 bool g_demo_mode      = false;
 
+// Counts rapid resets (survives RST, cleared by power-off or normal 10-s run)
+RTC_DATA_ATTR int g_boot_count = 0;
+
 #ifndef UNIT_TESTING
 static DNSServer dnsServer;
 #endif
@@ -423,7 +426,7 @@ void startAPMode() {
 }
 
 void handleRoot() {
-  static char page[17408];
+  static char page[18432];
   String ip = g_ap_mode ? WiFi.softAPIP().toString() : WiFi.localIP().toString();
   const char* stationDisplay = g_ap_mode ? "none" : "block";
   // Format 24-bit RGB as #rrggbb (always 7 chars + NUL = 8 bytes).
@@ -439,7 +442,7 @@ void handleRoot() {
   snprintf(page, sizeof(page), CONFIG_HTML,
            g_ap_mode ? "block" : "none",  // AP setup banner
            stationDisplay,                 // main-cfg section (hidden in AP mode)
-           cfg_brightness, cfg_poll_min, cfg_num_leds,
+           cfg_num_leds, cfg_brightness, cfg_poll_min,
            cfg_cold_temp, cfg_hot_temp,
            cfg_latitude, cfg_longitude,
            cfg_freeze_thr, freezeColorHex,     // nerdy: freeze threshold + color
@@ -454,7 +457,9 @@ void handleRoot() {
            DEFAULT_HOLD_SEC, DEFAULT_ALERT_HOLD_SEC, DEFAULT_ATTACK_SEC, DEFAULT_DECAY_SEC,  // timing defaults for reset JS
            DEFAULT_FREEZE_THR_F, dfltFreezeHex,   // threshold/color defaults for reset JS
            DEFAULT_HEAT_THR_F,   dfltHeatHex,
-           DEFAULT_PRECIP_THR_PCT, dfltRainHex);
+           DEFAULT_PRECIP_THR_PCT, dfltRainHex,
+           DEFAULT_NUM_LEDS, DEFAULT_BRIGHTNESS, DEFAULT_POLL_MIN,  // basic defaults for reset JS
+           DEFAULT_COLD_TEMP_F, DEFAULT_HOT_TEMP_F);
   server.send(200, "text/html", page);
 }
 
@@ -649,6 +654,26 @@ void setup() {
   Serial.println("\n\nESP32 Temp Forecast LED Indicator v" FIRMWARE_VERSION
                  " (built " FIRMWARE_BUILD_TIMESTAMP ") — starting up");
 
+  // Triple-reset factory reset: press RST 3 times within 10 s → wipe NVS → AP mode.
+  // RTC_DATA_ATTR survives RST presses but is zeroed on power-off.
+  g_boot_count++;
+  if (g_boot_count >= 3) {
+    FastLED.addLeds<WS2812B, LED_PIN, GRB>(leds, MAX_LEDS);
+    FastLED.setBrightness(50);
+    fill_solid(leds, MAX_LEDS, CRGB(180, 0, 0));
+    FastLED.show();
+    Serial.println("Triple-reset detected — clearing all saved settings");
+    prefs.begin("wxleds", false);
+    prefs.clear();
+    prefs.end();
+    g_boot_count = 0;
+#ifndef UNIT_TESTING
+    delay(1500);
+    ESP.restart();
+#endif
+    return;
+  }
+
   loadConfig();
 
   FastLED.addLeds<WS2812B, LED_PIN, GRB>(leds, MAX_LEDS);
@@ -700,6 +725,11 @@ void setup() {
 void loop() {
   static bool firstRun = true;
   static unsigned long lastPollTime = 0;
+  static bool s_bootCountCleared = false;
+  if (!s_bootCountCleared && millis() > 10000) {
+    g_boot_count = 0;
+    s_bootCountCleared = true;
+  }
 
   if (g_ap_mode) {
 #ifndef UNIT_TESTING

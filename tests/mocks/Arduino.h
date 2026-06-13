@@ -98,6 +98,11 @@ extern SerialClass Serial;
 #endif
 #define F(x) (x)
 
+// ── ESP32-specific storage class modifiers (no-op on host) ───────────────────
+#ifndef RTC_DATA_ATTR
+#define RTC_DATA_ATTR
+#endif
+
 // ── Stub WiFi credentials (used by setup() when secrets.h is not included) ──
 #ifndef WIFI_SSID
 #  define WIFI_SSID     "test-ssid"

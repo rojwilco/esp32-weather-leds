@@ -373,6 +373,29 @@ TEST_F(HandleRootTest, DemoModeClassAndSsidInCorrectPositions) {
     EXPECT_GT(ssidPos, demoEndPos) << "SSID value landed inside the demo button form (arg order bug)";
 }
 
+// Description: handleRoot() renders a resetBasicDefaults() JS function with a
+// "Reset to defaults" button in the Basic Settings section; the function body
+// contains the DEFAULT_* constant values so the firmware is the single source of truth.
+TEST_F(HandleRootTest, BasicResetButtonPresent) {
+    RecordProperty("description",
+        "handleRoot() renders a resetBasicDefaults() JS function with a "
+        "\"Reset to defaults\" button in the Basic Settings section; the function body "
+        "contains the DEFAULT_* constant values so the firmware is the single source of truth.");
+    handleRoot();
+    std::string body = g_mock_last_send_body.c_str();
+    EXPECT_NE(body.find("resetBasicDefaults"),  std::string::npos) << "resetBasicDefaults JS missing";
+    EXPECT_NE(body.find("onclick=\"resetBasicDefaults()\""), std::string::npos) << "button missing";
+    // DEFAULT_NUM_LEDS=6 and DEFAULT_BRIGHTNESS=50 should appear in the JS reset body.
+    EXPECT_NE(body.find("num_leds]').value='6'"),   std::string::npos) << "default num_leds not injected";
+    EXPECT_NE(body.find("brightness]').value='50'"), std::string::npos) << "default brightness not injected";
+    // num_leds field must appear before brightness in the form (num_leds is first).
+    size_t numLedsPos  = body.find("name=\"num_leds\"");
+    size_t brightnessPos = body.find("name=\"brightness\"");
+    ASSERT_NE(numLedsPos,    std::string::npos) << "num_leds field missing";
+    ASSERT_NE(brightnessPos, std::string::npos) << "brightness field missing";
+    EXPECT_LT(numLedsPos, brightnessPos) << "num_leds should appear before brightness in the form";
+}
+
 // Description: handleRoot() renders a resetThresholdDefaults() JS function with
 // "Reset to defaults" button so alert thresholds and colors can be restored at once.
 TEST_F(HandleRootTest, ThresholdResetButtonPresent) {

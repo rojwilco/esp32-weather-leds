@@ -74,6 +74,9 @@ bool g_ap_mode        = false;
 bool g_pendingConnect = false;
 bool g_demo_mode      = false;
 
+// Counts rapid resets (survives RST, cleared by power-off or normal 10-s run)
+RTC_DATA_ATTR int g_boot_count = 0;
+
 #ifndef UNIT_TESTING
 static DNSServer dnsServer;
 #endif
@@ -649,6 +652,26 @@ void setup() {
   Serial.println("\n\nESP32 Temp Forecast LED Indicator v" FIRMWARE_VERSION
                  " (built " FIRMWARE_BUILD_TIMESTAMP ") — starting up");
 
+  // Triple-reset factory reset: press RST 3 times within 10 s → wipe NVS → AP mode.
+  // RTC_DATA_ATTR survives RST presses but is zeroed on power-off.
+  g_boot_count++;
+  if (g_boot_count >= 3) {
+    FastLED.addLeds<WS2812B, LED_PIN, GRB>(leds, MAX_LEDS);
+    FastLED.setBrightness(50);
+    fill_solid(leds, MAX_LEDS, CRGB(180, 0, 0));
+    FastLED.show();
+    Serial.println("Triple-reset detected — clearing all saved settings");
+    prefs.begin("wxleds", false);
+    prefs.clear();
+    prefs.end();
+    g_boot_count = 0;
+#ifndef UNIT_TESTING
+    delay(1500);
+    ESP.restart();
+#endif
+    return;
+  }
+
   loadConfig();
 
   FastLED.addLeds<WS2812B, LED_PIN, GRB>(leds, MAX_LEDS);
@@ -700,6 +723,11 @@ void setup() {
 void loop() {
   static bool firstRun = true;
   static unsigned long lastPollTime = 0;
+  static bool s_bootCountCleared = false;
+  if (!s_bootCountCleared && millis() > 10000) {
+    g_boot_count = 0;
+    s_bootCountCleared = true;
+  }
 
   if (g_ap_mode) {
 #ifndef UNIT_TESTING

@@ -32,8 +32,8 @@ Latitude/longitude are also set via the web UI.
 
 ## Architecture
 
-- `setup()` — loads config, initializes FastLED, connects WiFi (dim-orange on failure), starts `WebServer`, prints IP, clears LEDs
-- `loop()` — calls `server.handleClient()` every iteration; polls immediately on boot, then every `cfg_poll_min` minutes; `g_forceRepoll` flag triggers an out-of-schedule poll; dispatches to `pollDemoMode()` instead of `pollWeather()` when `g_demo_mode` is true
+- `setup()` — checks `RTC_DATA_ATTR g_boot_count` for triple-reset (≥3 rapid RST presses → wipe NVS + restart); then loads config, initializes FastLED, connects WiFi (dim-orange on failure), starts `WebServer`, prints IP, clears LEDs
+- `loop()` — calls `server.handleClient()` every iteration; clears `g_boot_count` after 10 s to end the triple-reset window; polls immediately on boot, then every `cfg_poll_min` minutes; `g_forceRepoll` flag triggers an out-of-schedule poll; dispatches to `pollDemoMode()` instead of `pollWeather()` when `g_demo_mode` is true
 - `loadConfig()` / `saveConfig()` — reads/writes all runtime settings to NVS via `Preferences` (namespace `"wxleds"`); includes `g_demo_mode` (key `"demo_mode"`)
 - `handleRoot()` — serves the HTML config page (`config_html.h`) with current config values injected via `snprintf`; page adapts based on device mode: AP mode shows only WiFi fields, station mode shows full config. **The order of arguments in the `snprintf` call must exactly match the order of `%` placeholders in `CONFIG_HTML`** — positional format strings give no compile-time protection against mismatches.
 - `handleSave()` — processes POST from the config form, validates inputs, persists settings via `saveConfig()`, applies `FastLED.setBrightness()` immediately; sets `g_forceRepoll` if location or `cfg_num_leds` changed; `cfg_num_leds` is clamped to 1–16

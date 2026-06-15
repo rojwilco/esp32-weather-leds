@@ -86,7 +86,7 @@ If the device loses network access and you need to reconfigure it without a USB 
 3. The device wipes all saved settings (WiFi credentials, location, and all config) and reboots into AP mode.
 4. Connect to the **ESP32-WeatherLED** network and reconfigure as on first boot.
 
-> **Note:** Pressing RST once or twice within 10 seconds is harmless — the device boots normally. The counter resets to zero after 10 seconds of uninterrupted operation, so accidental double-presses during normal use will never trigger a factory reset. Powering off the device also resets the counter.
+> **Note:** Each press is confirmed by N amber LED flashes (1 flash = first press counted, 2 flashes = second press counted). The counter resets to zero 30 seconds after the device finishes booting — long enough to press RST after the weather display appears — so accidental presses during normal operation will never trigger a factory reset.
 
 ## Data Source
 

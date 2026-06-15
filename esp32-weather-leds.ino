@@ -74,8 +74,6 @@ bool g_ap_mode        = false;
 bool g_pendingConnect = false;
 bool g_demo_mode      = false;
 
-// Counts rapid resets (survives RST, cleared by power-off or normal 10-s run)
-RTC_DATA_ATTR int g_boot_count = 0;
 
 #ifndef UNIT_TESTING
 static DNSServer dnsServer;
@@ -652,19 +650,31 @@ void setup() {
   Serial.println("\n\nESP32 Temp Forecast LED Indicator v" FIRMWARE_VERSION
                  " (built " FIRMWARE_BUILD_TIMESTAMP ") — starting up");
 
-  // Triple-reset factory reset: press RST 3 times within 10 s → wipe NVS → AP mode.
-  // RTC_DATA_ATTR survives RST presses but is zeroed on power-off.
-  g_boot_count++;
-  if (g_boot_count >= 3) {
-    FastLED.addLeds<WS2812B, LED_PIN, GRB>(leds, MAX_LEDS);
-    FastLED.setBrightness(50);
+  // Triple-reset factory reset: press RST 3 times → wipe NVS → AP mode.
+  // Stored in NVS so it survives EN-pin RST presses (RTC_DATA_ATTR only survives
+  // esp_restart() software resets, not the hardware RST button on WeMos D1 Mini).
+  FastLED.addLeds<WS2812B, LED_PIN, GRB>(leds, MAX_LEDS);
+  FastLED.setBrightness(50);
+  prefs.begin("wxleds", false);
+  uint8_t bootCount = prefs.getUChar("rst_count", 0) + 1;
+  prefs.putUChar("rst_count", bootCount);
+  prefs.end();
+  // Amber flashes confirm each press and show the running count.
+  for (int i = 0; i < bootCount && i < 3; i++) {
+    fill_solid(leds, MAX_LEDS, CRGB(180, 60, 0));
+    FastLED.show();
+    delay(300);
+    fill_solid(leds, MAX_LEDS, CRGB(0, 0, 0));
+    FastLED.show();
+    delay(200);
+  }
+  if (bootCount >= 3) {
     fill_solid(leds, MAX_LEDS, CRGB(180, 0, 0));
     FastLED.show();
     Serial.println("Triple-reset detected — clearing all saved settings");
     prefs.begin("wxleds", false);
     prefs.clear();
     prefs.end();
-    g_boot_count = 0;
 #ifndef UNIT_TESTING
     delay(1500);
     ESP.restart();
@@ -674,7 +684,6 @@ void setup() {
 
   loadConfig();
 
-  FastLED.addLeds<WS2812B, LED_PIN, GRB>(leds, MAX_LEDS);
   FastLED.setBrightness(cfg_brightness);
 
   // Dim white boot indicator on configured LEDs
@@ -723,10 +732,16 @@ void setup() {
 void loop() {
   static bool firstRun = true;
   static unsigned long lastPollTime = 0;
-  static bool s_bootCountCleared = false;
-  if (!s_bootCountCleared && millis() > 10000) {
-    g_boot_count = 0;
-    s_bootCountCleared = true;
+  static unsigned long s_loopStartMs = 0;
+  static bool s_rstCountCleared = false;
+  if (s_loopStartMs == 0) s_loopStartMs = millis();
+  // Clear the reset counter 30 s after loop() first runs (not from millis()=0 in
+  // setup()) so presses after the weather display appears still count.
+  if (!s_rstCountCleared && millis() - s_loopStartMs > 30000) {
+    s_rstCountCleared = true;
+    prefs.begin("wxleds", false);
+    if (prefs.getUChar("rst_count", 0) > 0) prefs.putUChar("rst_count", 0);
+    prefs.end();
   }
 
   if (g_ap_mode) {

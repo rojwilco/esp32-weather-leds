@@ -38,16 +38,17 @@ input.clr-hex.invalid{border-color:#a04040}
 <div style="display:%s;background:#1a2a3a;border:1px solid #2a5a8a;border-radius:4px;padding:.8em;margin-bottom:1em;color:#6aaddf">&#9432; Setup mode &mdash; connect to <strong>ESP32-Weather</strong>, then enter your WiFi credentials below and save.</div>
 <div id="main-cfg" style="display:%s">
 <form id="mainForm" method="POST" action="/save">
+<label>LEDs (1&ndash;16) &mdash; LED 1&nbsp;=&nbsp;today, LED 2&nbsp;=&nbsp;tomorrow&nbsp;&hellip;</label>
+<input type="number" name="num_leds" min="1" max="16" value="%d">
 <label>Brightness (0-255)</label>
 <input type="number" name="brightness" min="0" max="255" value="%d">
 <label>Poll interval (minutes)</label>
 <input type="number" name="poll_min" min="1" max="1440" value="%d">
-<label>LEDs (1&ndash;16) &mdash; LED 1&nbsp;=&nbsp;today, LED 2&nbsp;=&nbsp;tomorrow&nbsp;&hellip;</label>
-<input type="number" name="num_leds" min="1" max="16" value="%d">
 <label>Cold temperature &deg;F (blue end)</label>
 <input type="number" name="cold_temp" step="0.1" value="%.1f">
 <label>Hot temperature &deg;F (red end)</label>
 <input type="number" name="hot_temp" step="0.1" value="%.1f">
+<div style="text-align:right;margin-top:.5em"><button type="button" onclick="resetBasicDefaults()" style="background:#444;color:#aaa;font-size:.8em;padding:.3em .8em;border:none;border-radius:4px;cursor:pointer">Reset to defaults</button></div>
 <label>Location</label>
 <div class="locrow loc-zone">
 <select id="countrySelect">
@@ -296,6 +297,14 @@ function scanWifi(){
 document.getElementById('ssidSelect').addEventListener('change',function(){
   if(this.value)document.getElementById('ssidInput').value=this.value;
 });
+function resetBasicDefaults(){
+  document.querySelector('[name=num_leds]').value='%d';
+  document.querySelector('[name=brightness]').value='%d';
+  document.querySelector('[name=poll_min]').value='%d';
+  document.querySelector('[name=cold_temp]').value='%.1f';
+  document.querySelector('[name=hot_temp]').value='%.1f';
+  document.getElementById('mainForm').dispatchEvent(new Event('input',{bubbles:true}));
+}
 function lookupZip(){
   var cc=document.getElementById('countrySelect').value;
   var z=document.getElementById('zipInput').value.trim();

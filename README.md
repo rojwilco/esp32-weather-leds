@@ -80,6 +80,17 @@ Because alerts fire based on the live threshold settings, adjusting **Cold/Hot c
 
 Demo mode is saved to NVS and persists across reboots. Pressing **Demo Mode** again returns to normal weather polling.
 
+## Factory Reset
+
+If the device loses network access and you need to reconfigure it without a USB connection, use the **triple-reset** gesture:
+
+1. Press **RST** once. The LED strip and the onboard LED will flash **light blue once** to confirm the first press, then boot normally.
+2. Press **RST** again (any time during boot, or within 30 seconds of the LEDs showing weather). They will flash **light blue twice**, then boot normally.
+3. Press **RST** a third time. The strip turns solid red and the onboard LED stays on, all settings are wiped, and the device reboots into AP mode.
+4. Connect to the **ESP32-WeatherLED** network and reconfigure as on first boot.
+
+> **Note:** The counter resets to zero 30 seconds after the device finishes booting, so stray presses during normal operation will never trigger a factory reset. Powering the device off also clears the counter.
+
 ## Data Source
 
 [Open-Meteo](https://open-meteo.com/) — free, no API key required.

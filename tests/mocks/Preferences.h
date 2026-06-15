@@ -15,6 +15,7 @@ extern std::map<std::string, std::string> g_mock_prefs_store;
 struct Preferences {
     void begin(const char* /*ns*/, bool /*readOnly*/ = false) {}
     void end() {}
+    void clear() { g_mock_prefs_store.clear(); }
 
     // ── getters ───────────────────────────────────────────────────────────────
     bool     getBool(const char* key, bool def = false) const        { return get_or<uint8_t>(key, def ? 1 : 0) != 0; }

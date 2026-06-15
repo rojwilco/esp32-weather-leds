@@ -17,6 +17,7 @@
 #include "version.h"
 
 #define LED_PIN           23
+#define ONBOARD_LED_PIN    2   // WeMos D1 Mini ESP32 built-in LED (active-low)
 #define MAX_LEDS          16   // Open-Meteo API maximum for forecast_days
 #define AP_SSID           "ESP32-WeatherLED"
 
@@ -73,6 +74,7 @@ bool g_forceRepoll    = false;
 bool g_ap_mode        = false;
 bool g_pendingConnect = false;
 bool g_demo_mode      = false;
+
 
 #ifndef UNIT_TESTING
 static DNSServer dnsServer;
@@ -651,9 +653,49 @@ void setup() {
   Serial.println("\n\nESP32 Temp Forecast LED Indicator v" FIRMWARE_VERSION
                  " (built " FIRMWARE_BUILD_TIMESTAMP ") — starting up");
 
+  // Triple-reset factory reset: press RST 3 times → wipe NVS → AP mode.
+  // Stored in NVS so it survives EN-pin RST presses (RTC_DATA_ATTR only survives
+  // esp_restart() software resets, not the hardware RST button on WeMos D1 Mini).
+  FastLED.addLeds<WS2812B, LED_PIN, GRB>(leds, MAX_LEDS);
+  FastLED.setBrightness(50);
+  pinMode(ONBOARD_LED_PIN, OUTPUT);
+  digitalWrite(ONBOARD_LED_PIN, LOW);   // off (active-high)
+  prefs.begin("wxleds", false);
+  uint8_t bootCount = prefs.getUChar("rst_count", 0) + 1;
+  prefs.putUChar("rst_count", bootCount);
+  prefs.end();
+  // Light-blue flashes confirm each press and show the running count.
+  // MAX_LEDS (not cfg_num_leds) is used intentionally: the flash runs before
+  // loadConfig() so the configured count isn't known, and illuminating the full
+  // strip makes the indicator visible regardless of how many LEDs are configured.
+  // Onboard LED mirrors the strip for visibility without needing to see the strip.
+  for (int i = 0; i < bootCount && i < 3; i++) {
+    fill_solid(leds, MAX_LEDS, CRGB(0, 128, 255));
+    FastLED.show();
+    digitalWrite(ONBOARD_LED_PIN, HIGH);  // on
+    delay(300);
+    fill_solid(leds, MAX_LEDS, CRGB(0, 0, 0));
+    FastLED.show();
+    digitalWrite(ONBOARD_LED_PIN, LOW);   // off
+    delay(200);
+  }
+  if (bootCount >= 3) {
+    fill_solid(leds, MAX_LEDS, CRGB(180, 0, 0));
+    FastLED.show();
+    digitalWrite(ONBOARD_LED_PIN, HIGH);  // on solid for reset confirmation
+    Serial.println("Triple-reset detected — clearing all saved settings");
+    prefs.begin("wxleds", false);
+    prefs.clear();
+    prefs.end();
+#ifndef UNIT_TESTING
+    delay(1500);
+    ESP.restart();
+#endif
+    return;
+  }
+
   loadConfig();
 
-  FastLED.addLeds<WS2812B, LED_PIN, GRB>(leds, MAX_LEDS);
   FastLED.setBrightness(cfg_brightness);
 
   // Dim white boot indicator on configured LEDs
@@ -702,6 +744,16 @@ void setup() {
 void loop() {
   static bool firstRun = true;
   static unsigned long lastPollTime = 0;
+  static bool s_rstCountCleared = false;
+  if (!s_rstCountCleared) {
+    // Clear the reset counter on the first loop() call. The counter only accumulates
+    // across interrupted boots (RST pressed before setup() completes); once the device
+    // reaches loop() it has booted cleanly and a fresh triple-press should start from 0.
+    s_rstCountCleared = true;
+    prefs.begin("wxleds", false);
+    if (prefs.getUChar("rst_count", 0) > 0) prefs.putUChar("rst_count", 0);
+    prefs.end();
+  }
 
   if (g_ap_mode) {
 #ifndef UNIT_TESTING

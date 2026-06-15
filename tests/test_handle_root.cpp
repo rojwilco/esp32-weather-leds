@@ -397,15 +397,21 @@ TEST_F(HandleRootTest, BasicResetButtonPresent) {
 }
 
 // Description: handleRoot() renders a resetThresholdDefaults() JS function with
-// "Reset to defaults" button so alert thresholds and colors can be restored at once.
+// "Reset to defaults" button so alert thresholds and colors can be restored at once;
+// the injected defaults include freeze (#c8c8ff), heat (#ff00ff), and rain (#00c8c8).
 TEST_F(HandleRootTest, ThresholdResetButtonPresent) {
     RecordProperty("description",
         "handleRoot() renders a resetThresholdDefaults() JS function with "
-        "\"Reset to defaults\" button so alert thresholds and colors can be restored at once.");
+        "\"Reset to defaults\" button so alert thresholds and colors can be restored at once; "
+        "the injected defaults include freeze (#c8c8ff), heat (#ff00ff), and rain (#00c8c8).");
     handleRoot();
     std::string body = g_mock_last_send_body.c_str();
     EXPECT_NE(body.find("resetThresholdDefaults"), std::string::npos) << "resetThresholdDefaults missing";
     EXPECT_NE(body.find("Reset to defaults"),       std::string::npos) << "Reset to defaults button missing";
-    // DEFAULT_FREEZE_COLOR = 0xC8C8FF → "#c8c8ff" should appear in the JS reset body.
+    // DEFAULT_FREEZE_COLOR = 0xC8C8FF → "#c8c8ff"
     EXPECT_NE(body.find("#c8c8ff"), std::string::npos) << "default freeze color hex not in reset JS";
+    // DEFAULT_HEAT_COLOR = 0xFF00FF → "#ff00ff" (magenta)
+    EXPECT_NE(body.find("#ff00ff"), std::string::npos) << "default heat color hex not in reset JS";
+    // DEFAULT_RAIN_COLOR = 0x00C8C8 → "#00c8c8"
+    EXPECT_NE(body.find("#00c8c8"), std::string::npos) << "default rain color hex not in reset JS";
 }

@@ -661,22 +661,24 @@ void setup() {
   prefs.begin("wxleds", false);
   uint8_t bootCount = prefs.getUChar("rst_count", 0) + 1;
   prefs.putUChar("rst_count", bootCount);
-  uint8_t flashLeds = prefs.getUChar("num_leds", DEFAULT_NUM_LEDS);
   prefs.end();
   // Light-blue flashes confirm each press and show the running count.
+  // MAX_LEDS (not cfg_num_leds) is used intentionally: the flash runs before
+  // loadConfig() so the configured count isn't known, and illuminating the full
+  // strip makes the indicator visible regardless of how many LEDs are configured.
   // Onboard LED mirrors the strip for visibility without needing to see the strip.
   for (int i = 0; i < bootCount && i < 3; i++) {
-    fill_solid(leds, flashLeds, CRGB(0, 128, 255));
+    fill_solid(leds, MAX_LEDS, CRGB(0, 128, 255));
     FastLED.show();
     digitalWrite(ONBOARD_LED_PIN, HIGH);  // on
     delay(300);
-    fill_solid(leds, flashLeds, CRGB(0, 0, 0));
+    fill_solid(leds, MAX_LEDS, CRGB(0, 0, 0));
     FastLED.show();
     digitalWrite(ONBOARD_LED_PIN, LOW);   // off
     delay(200);
   }
   if (bootCount >= 3) {
-    fill_solid(leds, flashLeds, CRGB(180, 0, 0));
+    fill_solid(leds, MAX_LEDS, CRGB(180, 0, 0));
     FastLED.show();
     digitalWrite(ONBOARD_LED_PIN, HIGH);  // on solid for reset confirmation
     Serial.println("Triple-reset detected — clearing all saved settings");

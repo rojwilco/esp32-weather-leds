@@ -81,12 +81,12 @@ Demo mode is saved to NVS and persists across reboots. Pressing **Demo Mode** ag
 
 If the device loses network access and you need to reconfigure it without a USB connection, use the **triple-reset** gesture:
 
-1. Press the **RST** button three times in quick succession (within ~10 seconds).
-2. The LEDs flash red briefly to confirm the reset was detected.
-3. The device wipes all saved settings (WiFi credentials, location, and all config) and reboots into AP mode.
+1. Press **RST** once. The LEDs will flash **amber once** to confirm the first press, then boot normally.
+2. Press **RST** again (any time during boot, or within 30 seconds of the LEDs showing weather). The LEDs will flash **amber twice**, then boot normally.
+3. Press **RST** a third time. The LEDs turn solid red, all settings are wiped, and the device reboots into AP mode.
 4. Connect to the **ESP32-WeatherLED** network and reconfigure as on first boot.
 
-> **Note:** Each press is confirmed by N amber LED flashes (1 flash = first press counted, 2 flashes = second press counted). The counter resets to zero 30 seconds after the device finishes booting — long enough to press RST after the weather display appears — so accidental presses during normal operation will never trigger a factory reset.
+> **Note:** The counter resets to zero 30 seconds after the device finishes booting, so stray presses during normal operation will never trigger a factory reset. Powering the device off also clears the counter.
 
 ## Data Source
 

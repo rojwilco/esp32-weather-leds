@@ -32,7 +32,7 @@ Latitude/longitude are also set via the web UI.
 
 ## Architecture
 
-- `setup()` — reads `rst_count` from NVS and increments it to detect triple-reset (≥3 RST presses → wipe NVS + restart); flashes amber LEDs N times as visual confirmation of the current count; then loads config, initializes FastLED, connects WiFi (dim-orange on failure), starts `WebServer`, prints IP, clears LEDs. NVS is used instead of `RTC_DATA_ATTR` because the WeMos D1 Mini RST button drives the EN pin (hardware reset), which does not preserve RTC memory.
+- `setup()` — reads `rst_count` from NVS and increments it to detect triple-reset (≥3 RST presses → wipe NVS + restart); flashes the LED strip and the onboard LED (`ONBOARD_LED_PIN 2`, active-low) N times in light blue (`CRGB(0, 128, 255)`) as visual confirmation of the current count; then loads config, initializes FastLED, connects WiFi (dim-orange on failure), starts `WebServer`, prints IP, clears LEDs. NVS is used instead of `RTC_DATA_ATTR` because the WeMos D1 Mini RST button drives the EN pin (hardware reset), which does not preserve RTC memory.
 - `loop()` — calls `server.handleClient()` every iteration; clears `rst_count` in NVS 30 s after `loop()` first runs (measured from `s_loopStartMs`, not from `millis()` zero, so presses after the weather display appears still count); polls immediately on boot, then every `cfg_poll_min` minutes; `g_forceRepoll` flag triggers an out-of-schedule poll; dispatches to `pollDemoMode()` instead of `pollWeather()` when `g_demo_mode` is true
 - `loadConfig()` / `saveConfig()` — reads/writes all runtime settings to NVS via `Preferences` (namespace `"wxleds"`); includes `g_demo_mode` (key `"demo_mode"`)
 - `handleRoot()` — serves the HTML config page (`config_html.h`) with current config values injected via `snprintf`; page adapts based on device mode: AP mode shows only WiFi fields, station mode shows full config. **The order of arguments in the `snprintf` call must exactly match the order of `%` placeholders in `CONFIG_HTML`** — positional format strings give no compile-time protection against mismatches.
@@ -155,6 +155,16 @@ With this in place, clicking **Run tests** in TestMate automatically runs `make 
 **GitHub Actions:** Two workflows run in CI:
 - `.github/workflows/tests.yml` — runs on every push and PR; configures, builds, and runs the host tests on `ubuntu-latest`; publishes per-test results via `dorny/test-reporter`. The CMake build directory is cached keyed on `tests/CMakeLists.txt`.
 - `.github/workflows/build.yml` — compiles the sketch on every push, PR, and tag; on `v*.*.*` tags the `release` job additionally publishes a GitHub Release (see [Publishing a release](#publishing-a-release) below).
+
+## Documentation hygiene
+
+Every code change that affects user-visible behaviour or architecture must be reflected in three places **in the same commit or push**:
+
+1. **`README.md`** — user-facing documentation (LED colours, gestures, UI fields, recovery steps). Update any description, step list, or note that references the changed behaviour.
+2. **`CLAUDE.md` Architecture section** — agent/developer documentation. Update the relevant bullet(s) so the description matches the code exactly (pin numbers, colour values, timing constants, key names, etc.).
+3. **PR description** — rewrite or amend the summary and key-changes sections to reflect the current implementation. The PR body is the canonical record of what the PR does; it must not describe superseded designs.
+
+This rule applies both when implementing a plan for the first time **and** when making follow-up changes to an open PR. If you push a new commit that changes behaviour, update all three before considering the task done.
 
 ## Commit conventions
 

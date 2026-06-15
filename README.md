@@ -47,17 +47,20 @@ Bounds default to 20°F (cold/blue) and 90°F (hot/red) and are configurable via
 |---|---|---|
 | WiFi SSID | — | Network name; use the **Scan** button to list visible networks |
 | WiFi Password | — | Saved in NVS; leave blank on the settings page to keep the current password |
+| Number of LEDs/days | 6 | Number of forecast days (1–16); LED 1 = today, LED N = N-1 days ahead |
 | Brightness | 50 | LED brightness (0–255) |
-| Freeze alert threshold | 32°F | Alert when daily low ≤ this value |
-| Heat alert threshold | 95°F | Alert when daily high ≥ this value |
-| Precipitation alert threshold | 50% | Alert when precipitation probability ≥ this value |
+| Poll interval | 30 min | How often to fetch a new forecast |
 | Cold color bound | 20°F | Temperature mapped to blue |
 | Hot color bound | 90°F | Temperature mapped to red |
 | Latitude / Longitude | — | The page includes a ZIP code lookup that resolves to lat/lon in the browser (via zippopotam.us) — the ESP32 never makes this request |
-| Poll interval | 30 min | How often to fetch a new forecast |
-| Number of LEDs/days | 6 | Number of forecast days (1–16); LED 1 = today, LED N = N-1 days ahead |
+| Freeze alert threshold | 32°F | Alert when daily low ≤ this value |
+| Freeze alert color | `#c8c8ff` (icy blue) | Color pulsed by freeze-alert LEDs |
+| Heat alert threshold | 95°F | Alert when daily high ≥ this value |
+| Heat alert color | `#ff00ff` (magenta) | Color pulsed by heat-alert LEDs |
+| Precipitation alert threshold | 50% | Alert when precipitation probability ≥ this value |
+| Rain alert color | `#00c8c8` (cyan) | Color pulsed by rain-alert LEDs |
 
-Settings are saved to flash (NVS) and persist across reboots. The "Poll Now" button forces an immediate weather fetch.
+Settings are saved to flash (NVS) and persist across reboots. The **Basic Settings** section has a **Reset to defaults** button that restores num\_leds, brightness, poll interval, and the cold/hot color bounds to their factory values without touching location or alert thresholds. The **Alert Thresholds** section has a matching button that restores all three thresholds and their alert colors. The **Poll Now** button forces an immediate weather fetch.
 
 ## Demo Mode
 

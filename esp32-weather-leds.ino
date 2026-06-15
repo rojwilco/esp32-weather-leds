@@ -38,7 +38,7 @@
 #define DEFAULT_ATTACK_SEC      0.5f     // rise time: base → alert color
 #define DEFAULT_DECAY_SEC       0.5f     // fall time: alert → base color
 #define DEFAULT_FREEZE_COLOR    0xC8C8FFU  // icy white-blue, distinct from cold blue base
-#define DEFAULT_HEAT_COLOR      0xFF8C00U  // orange, distinct from hot red base
+#define DEFAULT_HEAT_COLOR      0xFF00FFU  // magenta
 #define DEFAULT_RAIN_COLOR      0x00C8C8U  // cyan
 
 // Runtime config (loaded from NVS, used everywhere)
@@ -423,7 +423,7 @@ void startAPMode() {
 }
 
 void handleRoot() {
-  static char page[17408];
+  static char page[18432];
   String ip = g_ap_mode ? WiFi.softAPIP().toString() : WiFi.localIP().toString();
   const char* stationDisplay = g_ap_mode ? "none" : "block";
   // Format 24-bit RGB as #rrggbb (always 7 chars + NUL = 8 bytes).
@@ -439,7 +439,7 @@ void handleRoot() {
   snprintf(page, sizeof(page), CONFIG_HTML,
            g_ap_mode ? "block" : "none",  // AP setup banner
            stationDisplay,                 // main-cfg section (hidden in AP mode)
-           cfg_brightness, cfg_poll_min, cfg_num_leds,
+           cfg_num_leds, cfg_brightness, cfg_poll_min,
            cfg_cold_temp, cfg_hot_temp,
            cfg_latitude, cfg_longitude,
            cfg_freeze_thr, freezeColorHex,     // nerdy: freeze threshold + color
@@ -454,7 +454,9 @@ void handleRoot() {
            DEFAULT_HOLD_SEC, DEFAULT_ALERT_HOLD_SEC, DEFAULT_ATTACK_SEC, DEFAULT_DECAY_SEC,  // timing defaults for reset JS
            DEFAULT_FREEZE_THR_F, dfltFreezeHex,   // threshold/color defaults for reset JS
            DEFAULT_HEAT_THR_F,   dfltHeatHex,
-           DEFAULT_PRECIP_THR_PCT, dfltRainHex);
+           DEFAULT_PRECIP_THR_PCT, dfltRainHex,
+           DEFAULT_NUM_LEDS, DEFAULT_BRIGHTNESS, DEFAULT_POLL_MIN,  // basic defaults for reset JS
+           DEFAULT_COLD_TEMP_F, DEFAULT_HOT_TEMP_F);
   server.send(200, "text/html", page);
 }
 

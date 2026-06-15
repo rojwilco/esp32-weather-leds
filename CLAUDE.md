@@ -32,7 +32,7 @@ Latitude/longitude are also set via the web UI.
 
 ## Architecture
 
-- `setup()` — reads `rst_count` from NVS and increments it to detect triple-reset (≥3 RST presses → wipe NVS + restart); flashes the LED strip and the onboard LED (`ONBOARD_LED_PIN 2`, active-low) N times in light blue (`CRGB(0, 128, 255)`) as visual confirmation of the current count; then loads config, initializes FastLED, connects WiFi (dim-orange on failure), starts `WebServer`, prints IP, clears LEDs. NVS is used instead of `RTC_DATA_ATTR` because the WeMos D1 Mini RST button drives the EN pin (hardware reset), which does not preserve RTC memory.
+- `setup()` — reads `rst_count` from NVS and increments it to detect triple-reset (≥3 RST presses → wipe NVS + restart); flashes the LED strip and the onboard LED (`ONBOARD_LED_PIN 2`, active-high) N times in light blue (`CRGB(0, 128, 255)`) as visual confirmation of the current count; then loads config, initializes FastLED, connects WiFi (dim-orange on failure), starts `WebServer`, prints IP, clears LEDs. NVS is used instead of `RTC_DATA_ATTR` because the WeMos D1 Mini RST button drives the EN pin (hardware reset), which does not preserve RTC memory.
 - `loop()` — calls `server.handleClient()` every iteration; clears `rst_count` in NVS 30 s after `loop()` first runs (measured from `s_loopStartMs`, not from `millis()` zero, so presses after the weather display appears still count); polls immediately on boot, then every `cfg_poll_min` minutes; `g_forceRepoll` flag triggers an out-of-schedule poll; dispatches to `pollDemoMode()` instead of `pollWeather()` when `g_demo_mode` is true
 - `loadConfig()` / `saveConfig()` — reads/writes all runtime settings to NVS via `Preferences` (namespace `"wxleds"`); includes `g_demo_mode` (key `"demo_mode"`)
 - `handleRoot()` — serves the HTML config page (`config_html.h`) with current config values injected via `snprintf`; page adapts based on device mode: AP mode shows only WiFi fields, station mode shows full config. **The order of arguments in the `snprintf` call must exactly match the order of `%` placeholders in `CONFIG_HTML`** — positional format strings give no compile-time protection against mismatches.
@@ -94,6 +94,7 @@ Test suites:
 - `test_handle_ota` — OTA upload handler
 - `test_hostname` — DHCP hostname generation from MAC address
 - `test_demo_mode` — `pollDemoMode()` gradient endpoints, alert placement, show count, `handleDemo()` toggle behaviour
+- `test_factory_reset` — NVS reset counter: increments on each boot, triggers `prefs.clear()` on third press, clears on first `loop()` call; `setup()` and `loop()` are called directly with empty wifi credentials so the fast AP-mode path is taken
 
 To add a new test file, create `tests/test_<name>.cpp` and add `add_sketch_test(test_<name>.cpp)` to `tests/CMakeLists.txt`.
 

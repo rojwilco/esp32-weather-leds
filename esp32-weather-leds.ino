@@ -657,7 +657,7 @@ void setup() {
   FastLED.addLeds<WS2812B, LED_PIN, GRB>(leds, MAX_LEDS);
   FastLED.setBrightness(50);
   pinMode(ONBOARD_LED_PIN, OUTPUT);
-  digitalWrite(ONBOARD_LED_PIN, HIGH);  // off (active-low)
+  digitalWrite(ONBOARD_LED_PIN, LOW);   // off (active-high)
   prefs.begin("wxleds", false);
   uint8_t bootCount = prefs.getUChar("rst_count", 0) + 1;
   prefs.putUChar("rst_count", bootCount);
@@ -667,17 +667,17 @@ void setup() {
   for (int i = 0; i < bootCount && i < 3; i++) {
     fill_solid(leds, MAX_LEDS, CRGB(0, 128, 255));
     FastLED.show();
-    digitalWrite(ONBOARD_LED_PIN, LOW);   // on
+    digitalWrite(ONBOARD_LED_PIN, HIGH);  // on
     delay(300);
     fill_solid(leds, MAX_LEDS, CRGB(0, 0, 0));
     FastLED.show();
-    digitalWrite(ONBOARD_LED_PIN, HIGH);  // off
+    digitalWrite(ONBOARD_LED_PIN, LOW);   // off
     delay(200);
   }
   if (bootCount >= 3) {
     fill_solid(leds, MAX_LEDS, CRGB(180, 0, 0));
     FastLED.show();
-    digitalWrite(ONBOARD_LED_PIN, LOW);  // on solid for reset confirmation
+    digitalWrite(ONBOARD_LED_PIN, HIGH);  // on solid for reset confirmation
     Serial.println("Triple-reset detected — clearing all saved settings");
     prefs.begin("wxleds", false);
     prefs.clear();
@@ -739,12 +739,11 @@ void setup() {
 void loop() {
   static bool firstRun = true;
   static unsigned long lastPollTime = 0;
-  static unsigned long s_loopStartMs = 0;
   static bool s_rstCountCleared = false;
-  if (s_loopStartMs == 0) s_loopStartMs = millis();
-  // Clear the reset counter 30 s after loop() first runs (not from millis()=0 in
-  // setup()) so presses after the weather display appears still count.
-  if (!s_rstCountCleared && millis() - s_loopStartMs > 30000) {
+  if (!s_rstCountCleared) {
+    // Clear the reset counter on the first loop() call. The counter only accumulates
+    // across interrupted boots (RST pressed before setup() completes); once the device
+    // reaches loop() it has booted cleanly and a fresh triple-press should start from 0.
     s_rstCountCleared = true;
     prefs.begin("wxleds", false);
     if (prefs.getUChar("rst_count", 0) > 0) prefs.putUChar("rst_count", 0);

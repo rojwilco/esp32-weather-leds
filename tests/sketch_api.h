@@ -112,3 +112,7 @@ void handleDemo();
 void handleScan();
 void handleOtaUpdate();
 void handleOtaUpload();
+
+// ── Arduino lifecycle (also testable for NVS side-effects) ───────────────────
+void setup();
+void loop();

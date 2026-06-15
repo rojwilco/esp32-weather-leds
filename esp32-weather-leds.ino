@@ -17,6 +17,7 @@
 #include "version.h"
 
 #define LED_PIN           23
+#define ONBOARD_LED_PIN    2   // WeMos D1 Mini ESP32 built-in LED (active-low)
 #define MAX_LEDS          16   // Open-Meteo API maximum for forecast_days
 #define AP_SSID           "ESP32-WeatherLED"
 
@@ -655,22 +656,28 @@ void setup() {
   // esp_restart() software resets, not the hardware RST button on WeMos D1 Mini).
   FastLED.addLeds<WS2812B, LED_PIN, GRB>(leds, MAX_LEDS);
   FastLED.setBrightness(50);
+  pinMode(ONBOARD_LED_PIN, OUTPUT);
+  digitalWrite(ONBOARD_LED_PIN, HIGH);  // off (active-low)
   prefs.begin("wxleds", false);
   uint8_t bootCount = prefs.getUChar("rst_count", 0) + 1;
   prefs.putUChar("rst_count", bootCount);
   prefs.end();
-  // Amber flashes confirm each press and show the running count.
+  // Light-blue flashes confirm each press and show the running count.
+  // Onboard LED mirrors the strip for visibility without needing to see the strip.
   for (int i = 0; i < bootCount && i < 3; i++) {
-    fill_solid(leds, MAX_LEDS, CRGB(180, 60, 0));
+    fill_solid(leds, MAX_LEDS, CRGB(0, 128, 255));
     FastLED.show();
+    digitalWrite(ONBOARD_LED_PIN, LOW);   // on
     delay(300);
     fill_solid(leds, MAX_LEDS, CRGB(0, 0, 0));
     FastLED.show();
+    digitalWrite(ONBOARD_LED_PIN, HIGH);  // off
     delay(200);
   }
   if (bootCount >= 3) {
     fill_solid(leds, MAX_LEDS, CRGB(180, 0, 0));
     FastLED.show();
+    digitalWrite(ONBOARD_LED_PIN, LOW);  // on solid for reset confirmation
     Serial.println("Triple-reset detected — clearing all saved settings");
     prefs.begin("wxleds", false);
     prefs.clear();

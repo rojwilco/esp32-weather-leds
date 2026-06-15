@@ -103,6 +103,13 @@ extern SerialClass Serial;
 #define RTC_DATA_ATTR
 #endif
 
+// ── GPIO stubs (no-op on host) ───────────────────────────────────────────────
+#define HIGH 1
+#define LOW  0
+#define OUTPUT 1
+inline void pinMode(int, int) {}
+inline void digitalWrite(int, int) {}
+
 // ── Stub WiFi credentials (used by setup() when secrets.h is not included) ──
 #ifndef WIFI_SSID
 #  define WIFI_SSID     "test-ssid"

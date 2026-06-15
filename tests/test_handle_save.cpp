@@ -531,7 +531,7 @@ TEST_F(HandleSaveTest, UnchangedThresholdAndColorNoRepoll) {
     g_mock_server_args["heat_thr"]     = std::to_string(DEFAULT_HEAT_THR_F);
     g_mock_server_args["precip_thr"]   = std::to_string(DEFAULT_PRECIP_THR_PCT);
     g_mock_server_args["freeze_color"] = "#c8c8ff";
-    g_mock_server_args["heat_color"]   = "#ff8c00";
+    g_mock_server_args["heat_color"]   = "#ff00ff";
     g_mock_server_args["rain_color"]   = "#00c8c8";
     handleSave();
     EXPECT_FALSE(g_forceRepoll);

@@ -38,7 +38,7 @@
 #define DEFAULT_ATTACK_SEC      0.5f     // rise time: base → alert color
 #define DEFAULT_DECAY_SEC       0.5f     // fall time: alert → base color
 #define DEFAULT_FREEZE_COLOR    0xC8C8FFU  // icy white-blue, distinct from cold blue base
-#define DEFAULT_HEAT_COLOR      0xFF8C00U  // orange, distinct from hot red base
+#define DEFAULT_HEAT_COLOR      0xFF00FFU  // magenta
 #define DEFAULT_RAIN_COLOR      0x00C8C8U  // cyan
 
 // Runtime config (loaded from NVS, used everywhere)

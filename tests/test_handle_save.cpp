@@ -30,6 +30,9 @@ protected:
         g_demo_mode      = false;
         g_forceRepoll    = false;
         g_pendingConnect = false;
+        g_pendingRestart = false;
+        g_ap_mode        = false;
+        cfg_friendly_name[0] = '\0';
         g_mock_server_args.clear();
         g_mock_prefs_store.clear();
         g_mock_last_send_code = 0;
@@ -535,4 +538,82 @@ TEST_F(HandleSaveTest, UnchangedThresholdAndColorNoRepoll) {
     g_mock_server_args["rain_color"]   = "#00c8c8";
     handleSave();
     EXPECT_FALSE(g_forceRepoll);
+}
+
+// Description: A new friendly name is trimmed of surrounding whitespace and
+// persisted to NVS under "friendly_name" so it survives the reboot that applies it.
+TEST_F(HandleSaveTest, FriendlyNameTrimmedAndPersisted) {
+    RecordProperty("description",
+        "A new friendly name is trimmed of surrounding whitespace and "
+        "persisted to NVS under \"friendly_name\" so it survives the reboot that applies it.");
+    g_mock_server_args["friendly_name"] = "  Kitchen Window  ";
+    handleSave();
+    EXPECT_STREQ(cfg_friendly_name, "Kitchen Window");
+    EXPECT_EQ(g_mock_prefs_store["friendly_name"], "Kitchen Window");
+}
+
+// Description: Names longer than FRIENDLY_NAME_MAX are truncated rather than
+// overflowing the fixed-size config buffer.
+TEST_F(HandleSaveTest, FriendlyNameTruncated) {
+    RecordProperty("description",
+        "Names longer than FRIENDLY_NAME_MAX are truncated rather than "
+        "overflowing the fixed-size config buffer.");
+    g_mock_server_args["friendly_name"] = std::string(50, 'x').c_str();
+    handleSave();
+    EXPECT_EQ(strlen(cfg_friendly_name), (size_t)FRIENDLY_NAME_MAX);
+}
+
+// Description: Changing the friendly name in station mode requests a reboot and
+// serves a 200 "rebooting" page, because the DHCP hostname only registers on connect.
+TEST_F(HandleSaveTest, FriendlyNameChangeTriggersRestart) {
+    RecordProperty("description",
+        "Changing the friendly name in station mode requests a reboot and "
+        "serves a 200 \"rebooting\" page, because the DHCP hostname only registers on connect.");
+    g_mock_server_args["friendly_name"] = "Porch";
+    handleSave();
+    EXPECT_TRUE(g_pendingRestart);
+    EXPECT_EQ(g_mock_last_send_code, 200);
+    std::string body = g_mock_last_send_body.c_str();
+    EXPECT_NE(body.find("Porch"), std::string::npos);
+    EXPECT_NE(body.find("http-equiv=\"refresh\""), std::string::npos);
+}
+
+// Description: Re-saving the same friendly name does not reboot and keeps the
+// normal 303 redirect, so unrelated setting changes don't interrupt the display.
+TEST_F(HandleSaveTest, UnchangedFriendlyNameNoRestart) {
+    RecordProperty("description",
+        "Re-saving the same friendly name does not reboot and keeps the "
+        "normal 303 redirect, so unrelated setting changes don't interrupt the display.");
+    strncpy(cfg_friendly_name, "Porch", sizeof(cfg_friendly_name));
+    g_mock_server_args["friendly_name"] = " Porch ";
+    g_mock_server_args["brightness"]    = "100";
+    handleSave();
+    EXPECT_FALSE(g_pendingRestart);
+    EXPECT_EQ(g_mock_last_send_code, 303);
+}
+
+// Description: The rebooting page HTML-escapes the friendly name so a name
+// containing markup cannot inject script into the response.
+TEST_F(HandleSaveTest, RestartPageEscapesName) {
+    RecordProperty("description",
+        "The rebooting page HTML-escapes the friendly name so a name "
+        "containing markup cannot inject script into the response.");
+    g_mock_server_args["friendly_name"] = "<script>x</script>";
+    handleSave();
+    std::string body = g_mock_last_send_body.c_str();
+    EXPECT_EQ(body.find("<script>"), std::string::npos);
+    EXPECT_NE(body.find("&lt;script&gt;"), std::string::npos);
+}
+
+// Description: In AP setup mode a name change does not reboot, since the device
+// is not on the network yet and the WiFi save path handles reconnecting.
+TEST_F(HandleSaveTest, FriendlyNameChangeInApModeNoRestart) {
+    RecordProperty("description",
+        "In AP setup mode a name change does not reboot, since the device "
+        "is not on the network yet and the WiFi save path handles reconnecting.");
+    g_ap_mode = true;
+    g_mock_server_args["friendly_name"] = "Porch";
+    handleSave();
+    EXPECT_FALSE(g_pendingRestart);
+    EXPECT_EQ(g_mock_last_send_code, 303);
 }

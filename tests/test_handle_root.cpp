@@ -29,6 +29,7 @@ protected:
         strncpy(cfg_wifi_pass, DEFAULT_WIFI_PASS, sizeof(cfg_wifi_pass));
         g_ap_mode   = false;
         g_demo_mode = false;
+        cfg_friendly_name[0] = '\0';
         g_mock_last_send_code = 0;
         g_mock_last_send_body = "";
     }
@@ -414,4 +415,71 @@ TEST_F(HandleRootTest, ThresholdResetButtonPresent) {
     EXPECT_NE(body.find("#ff00ff"), std::string::npos) << "default heat color hex not in reset JS";
     // DEFAULT_RAIN_COLOR = 0x00C8C8 → "#00c8c8"
     EXPECT_NE(body.find("#00c8c8"), std::string::npos) << "default rain color hex not in reset JS";
+}
+
+// Description: With no friendly name set, the page title and heading show the
+// generic "Weather LEDs Config" label and the name field is empty.
+TEST_F(HandleRootTest, DefaultTitleWhenNoName) {
+    RecordProperty("description",
+        "With no friendly name set, the page title and heading show the "
+        "generic \"Weather LEDs Config\" label and the name field is empty.");
+    handleRoot();
+    std::string body = g_mock_last_send_body.c_str();
+    EXPECT_NE(body.find("<title>Weather LEDs Config</title>"), std::string::npos);
+    EXPECT_NE(body.find("<h1>⛅ Weather LEDs Config</h1>"), std::string::npos);
+    EXPECT_NE(body.find("name=\"friendly_name\" maxlength=\"32\" placeholder=\"e.g. Kitchen Window\" value=\"\""),
+              std::string::npos);
+}
+
+// Description: A set friendly name appears in the <title>, <h1>, and the name
+// input's value, letting users tell units apart at a glance and in browser tabs.
+TEST_F(HandleRootTest, FriendlyNameShownInTitleHeadingAndField) {
+    RecordProperty("description",
+        "A set friendly name appears in the <title>, <h1>, and the name "
+        "input's value, letting users tell units apart at a glance and in browser tabs.");
+    strncpy(cfg_friendly_name, "Kitchen Window", sizeof(cfg_friendly_name));
+    handleRoot();
+    std::string body = g_mock_last_send_body.c_str();
+    EXPECT_NE(body.find("<title>Kitchen Window</title>"), std::string::npos);
+    EXPECT_NE(body.find("<h1>⛅ Kitchen Window</h1>"), std::string::npos);
+    EXPECT_NE(body.find("value=\"Kitchen Window\">\n<label>LEDs"), std::string::npos)
+        << "friendly_name value missing or snprintf args misaligned";
+}
+
+// Description: The footer shows the DHCP hostname derived from the friendly name
+// so users know what name to look for on their router.
+TEST_F(HandleRootTest, FooterShowsHostname) {
+    RecordProperty("description",
+        "The footer shows the DHCP hostname derived from the friendly name "
+        "so users know what name to look for on their router.");
+    strncpy(cfg_friendly_name, "Kitchen Window", sizeof(cfg_friendly_name));
+    handleRoot();
+    std::string body = g_mock_last_send_body.c_str();
+    EXPECT_NE(body.find("Hostname: kitchen-window &nbsp;|&nbsp; Device IP:"), std::string::npos);
+}
+
+// Description: The friendly name is HTML-escaped everywhere it is injected so
+// quotes or markup in a name cannot break the page or inject script.
+TEST_F(HandleRootTest, FriendlyNameIsHtmlEscaped) {
+    RecordProperty("description",
+        "The friendly name is HTML-escaped everywhere it is injected so "
+        "quotes or markup in a name cannot break the page or inject script.");
+    strncpy(cfg_friendly_name, "<b>\"A&B's\"</b>", sizeof(cfg_friendly_name));
+    handleRoot();
+    std::string body = g_mock_last_send_body.c_str();
+    EXPECT_EQ(body.find("<b>\"A&B"), std::string::npos);
+    EXPECT_NE(body.find("&lt;b&gt;&quot;A&amp;B&#39;s&quot;&lt;/b&gt;"), std::string::npos);
+}
+
+// Description: A maximum-length name made entirely of characters that expand
+// when escaped still renders the complete page, proving the static buffer has headroom.
+TEST_F(HandleRootTest, WorstCaseNameNotTruncated) {
+    RecordProperty("description",
+        "A maximum-length name made entirely of characters that expand "
+        "when escaped still renders the complete page, proving the static buffer has headroom.");
+    std::string worst(FRIENDLY_NAME_MAX, '"');
+    strncpy(cfg_friendly_name, worst.c_str(), sizeof(cfg_friendly_name));
+    handleRoot();
+    std::string body = g_mock_last_send_body.c_str();
+    EXPECT_NE(body.rfind("</html>"), std::string::npos) << "page buffer too small — body was truncated";
 }

@@ -44,6 +44,7 @@
 #define DEFAULT_FREEZE_COLOR    0xC8C8FFU
 #define DEFAULT_HEAT_COLOR      0xFF00FFU
 #define DEFAULT_RAIN_COLOR      0x00C8C8U
+#define FRIENDLY_NAME_MAX       32
 
 #define FADE_STEP  1
 
@@ -89,12 +90,14 @@ extern float    cfg_decay_sec;
 extern uint32_t cfg_freeze_color;
 extern uint32_t cfg_heat_color;
 extern uint32_t cfg_rain_color;
+extern char     cfg_friendly_name[FRIENDLY_NAME_MAX + 1];
 extern CRGB     leds[MAX_LEDS];
 extern LEDState ledStates[MAX_LEDS];
 extern bool     g_forceRepoll;
 extern bool     g_ap_mode;
 extern bool     g_pendingConnect;
 extern bool     g_demo_mode;
+extern bool     g_pendingRestart;
 
 // ── Sketch functions (defined in sketch_wrapper.cpp via sketch_lib) ───────────
 CRGB tempToColor(float tempF);
@@ -104,6 +107,9 @@ bool pollWeather();
 void pollDemoMode();
 void tickAnimations();
 void applyHostname();
+void buildHostname(const char* name, char* out, size_t outLen);
+void currentHostname(char* out, size_t outLen);
+void htmlEscape(const char* in, char* out, size_t outLen);
 void startAPMode();
 void handleRoot();
 void handleSave();

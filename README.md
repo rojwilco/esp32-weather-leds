@@ -47,6 +47,7 @@ Bounds default to 20°F (cold/blue) and 90°F (hot/red) and are configurable via
 |---|---|---|
 | WiFi SSID | — | Network name; use the **Scan** button to list visible networks |
 | WiFi Password | — | Saved in NVS; leave blank on the settings page to keep the current password |
+| Device name | — (blank) | Friendly name shown in the page title, heading, and browser tab, and used as the device's network (DHCP) hostname — see [Device name & hostname](#device-name--hostname) |
 | Number of LEDs/days | 6 | Number of forecast days (1–16); LED 1 = today, LED N = N-1 days ahead |
 | Brightness | 50 | LED brightness (0–255) |
 | Poll interval | 30 min | How often to fetch a new forecast |
@@ -61,6 +62,14 @@ Bounds default to 20°F (cold/blue) and 90°F (hot/red) and are configurable via
 | Rain alert color | `#00c8c8` (cyan) | Color pulsed by rain-alert LEDs |
 
 Settings are saved to flash (NVS) and persist across reboots. The **Basic Settings** section has a **Reset to defaults** button that restores num\_leds, brightness, poll interval, and the cold/hot color bounds to their factory values without touching location or alert thresholds. The **Alert Thresholds** section has a matching button that restores all three thresholds and their alert colors. The **Poll Now** button forces an immediate weather fetch.
+
+### Device name & hostname
+
+Give each unit a **Device name** (up to 32 characters, e.g. `Kitchen Window`) to tell several units apart. The name appears in the config page's title and heading, and the footer shows the resulting hostname.
+
+The name also becomes the DHCP hostname that shows up in your router's client list. It is converted to a valid hostname: letters are lowercased, digits are kept, and anything else (spaces, punctuation, accented or emoji characters) becomes a single `-`, with no leading or trailing dashes — so `Kitchen Window` → `kitchen-window` and `Bob's LEDs!` → `bob-s-leds`. If the name is blank, or nothing valid remains after conversion, the device uses its default hostname `weather-leds-XXXXXX` (last 3 bytes of the MAC address). Make sure each unit's name is unique on your network.
+
+Because a hostname is only registered when the device connects to WiFi, **saving a changed name reboots the device**; the page reloads automatically after about 10 seconds. Saving other settings without changing the name does not reboot.
 
 ## Demo Mode
 

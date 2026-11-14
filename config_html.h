@@ -7,7 +7,7 @@ const char CONFIG_HTML[] PROGMEM = R"rawhtml(
 <!DOCTYPE html><html>
 <head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Weather LEDs Config</title>
+<title>%s</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⛅</text></svg>">
 <style>
 body{font-family:sans-serif;max-width:500px;margin:2em auto;padding:0 1em;background:#1a1a1a;color:#e0e0e0}
@@ -34,10 +34,12 @@ input.clr-hex{width:5.2em;font-size:.85em;font-family:monospace;padding:.3em .4e
 input.clr-hex.invalid{border-color:#a04040}
 </style>
 </head><body>
-<h1>⛅ Weather LEDs Config</h1>
+<h1>⛅ %s</h1>
 <div style="display:%s;background:#1a2a3a;border:1px solid #2a5a8a;border-radius:4px;padding:.8em;margin-bottom:1em;color:#6aaddf">&#9432; Setup mode &mdash; connect to <strong>ESP32-Weather</strong>, then enter your WiFi credentials below and save.</div>
 <div id="main-cfg" style="display:%s">
 <form id="mainForm" method="POST" action="/save">
+<label>Device name &mdash; shown here and used as the network hostname (device reboots when changed)</label>
+<input type="text" name="friendly_name" maxlength="32" placeholder="e.g. Kitchen Window" value="%s">
 <label>LEDs (1&ndash;16) &mdash; LED 1&nbsp;=&nbsp;today, LED 2&nbsp;=&nbsp;tomorrow&nbsp;&hellip;</label>
 <input type="number" name="num_leds" min="1" max="16" value="%d">
 <label>Brightness (0-255)</label>
@@ -208,7 +210,7 @@ input.clr-hex.invalid{border-color:#a04040}
 <button class="btn poll" type="submit" style="margin-top:.8em">Upload &amp; Install</button>
 </form>
 </div>
-<div class="footer">Firmware: %s (built %s) &nbsp;|&nbsp; Device IP: %s</div>
+<div class="footer">Firmware: %s (built %s) &nbsp;|&nbsp; Hostname: %s &nbsp;|&nbsp; Device IP: %s</div>
 <script>
 var initVals={};
 (function(){

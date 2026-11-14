@@ -18,7 +18,8 @@
 //   • ArduinoJson ArduinoStringReader: is_base_of<::String, String> → true,
 //     c_str(), length()
 //   • ArduinoJson ArduinoStringWriter: concat(const char*)
-//   • Sketch usage: +=, +, ==, !=, toInt(), toFloat(), toCharArray(), isEmpty()
+//   • Sketch usage: +=, +, ==, !=, toInt(), toFloat(), toCharArray(), isEmpty(),
+//     trim(), substring()
 class String {
 public:
     String() = default;
@@ -50,6 +51,19 @@ public:
     long  toInt()   const { try { return std::stol(_s); } catch (...) { return 0; } }
     float toFloat() const { try { return std::stof(_s); } catch (...) { return 0.0f; } }
     bool  isEmpty() const { return _s.empty(); }
+    void  trim() {
+        const char* ws = " \t\r\n\f\v";
+        size_t b = _s.find_first_not_of(ws);
+        if (b == std::string::npos) { _s.clear(); return; }
+        size_t e = _s.find_last_not_of(ws);
+        _s = _s.substr(b, e - b + 1);
+    }
+    String substring(size_t from, size_t to) const {
+        if (from > _s.size()) from = _s.size();
+        if (to > _s.size())   to = _s.size();
+        if (to < from)        to = from;
+        return String(_s.substr(from, to - from));
+    }
 
     // Operators
     String& operator+=(const String& rhs) { _s += rhs._s; return *this; }

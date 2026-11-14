@@ -41,6 +41,7 @@
 #define DEFAULT_FREEZE_COLOR    0xC8C8FFU  // icy white-blue, distinct from cold blue base
 #define DEFAULT_HEAT_COLOR      0xFF00FFU  // magenta
 #define DEFAULT_RAIN_COLOR      0x00C8C8U  // cyan
+#define FRIENDLY_NAME_MAX       32         // max chars in friendly name (and in the derived hostname)
 
 // Runtime config (loaded from NVS, used everywhere)
 uint8_t  cfg_num_leds   = DEFAULT_NUM_LEDS;
@@ -62,6 +63,7 @@ float    cfg_decay_sec       = DEFAULT_DECAY_SEC;
 uint32_t cfg_freeze_color = DEFAULT_FREEZE_COLOR;
 uint32_t cfg_heat_color   = DEFAULT_HEAT_COLOR;
 uint32_t cfg_rain_color   = DEFAULT_RAIN_COLOR;
+char     cfg_friendly_name[FRIENDLY_NAME_MAX + 1] = "";  // user label; also drives DHCP hostname
 
 // Animation: single-unit blend steps for perceptual smoothness at all brightness levels.
 // Tick interval is derived from cfg_attack_sec / cfg_decay_sec so phase durations stay user-controlled.
@@ -74,6 +76,7 @@ bool g_forceRepoll    = false;
 bool g_ap_mode        = false;
 bool g_pendingConnect = false;
 bool g_demo_mode      = false;
+bool g_pendingRestart = false;  // set by handleSave() when a reboot was requested (friendly name change)
 
 
 #ifndef UNIT_TESTING
@@ -126,6 +129,7 @@ void loadConfig() {
   cfg_heat_color      = prefs.getUInt("heat_clr",    DEFAULT_HEAT_COLOR);
   cfg_rain_color      = prefs.getUInt("rain_clr",    DEFAULT_RAIN_COLOR);
   g_demo_mode         = prefs.getBool("demo_mode",   false);
+  prefs.getString("friendly_name", "").toCharArray(cfg_friendly_name, sizeof(cfg_friendly_name));
   prefs.end();
   Serial.printf("Config: leds=%d brt=%d poll=%dmin cold=%.1f hot=%.1f lat=%s lon=%s ssid=%s hold=%.2fs ahld=%.2fs atk=%.2fs dcy=%.2fs\n",
                 cfg_num_leds, cfg_brightness, cfg_poll_min, cfg_cold_temp, cfg_hot_temp,
@@ -154,6 +158,7 @@ void saveConfig() {
   prefs.putUInt("heat_clr",    cfg_heat_color);
   prefs.putUInt("rain_clr",    cfg_rain_color);
   prefs.putBool("demo_mode",   g_demo_mode);
+  prefs.putString("friendly_name", cfg_friendly_name);
   prefs.end();
 }
 
@@ -379,24 +384,85 @@ void handleDemo();
 void handleOtaUpdate();
 void handleOtaUpload();
 
-// Sets the DHCP hostname to "weather-leds-XXXXXX" where XXXXXX is the last
-// 3 bytes of the MAC address in lowercase hex. Must be called before WiFi.begin()
-// for the name to be registered via DHCP.
-void applyHostname() {
-  static char hostname[20];
+// Converts a free-form friendly name into a valid DHCP hostname label:
+// ASCII letters are lowercased, digits are kept, and every other byte (spaces,
+// punctuation, UTF-8 multi-byte sequences) becomes '-'. Runs of '-' collapse
+// to one, leading/trailing '-' are stripped, and the result is capped at
+// FRIENDLY_NAME_MAX chars. Writes "" when nothing valid remains so the caller
+// can fall back to the MAC-based default.
+void buildHostname(const char* name, char* out, size_t outLen) {
+  if (outLen == 0) return;
+  size_t maxLen = outLen - 1;
+  if (maxLen > FRIENDLY_NAME_MAX) maxLen = FRIENDLY_NAME_MAX;
+  size_t n = 0;
+  bool pendingDash = false;
+  for (const char* p = name; *p && n < maxLen; ++p) {
+    unsigned char c = (unsigned char)*p;
+    if (c >= 'A' && c <= 'Z') c = c - 'A' + 'a';
+    bool valid = (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9');
+    if (!valid) {
+      if (n > 0) pendingDash = true;  // drop leading separators
+      continue;
+    }
+    if (pendingDash) {
+      if (n + 1 >= maxLen) break;     // no room for dash + char; avoid trailing '-'
+      out[n++] = '-';
+      pendingDash = false;
+    }
+    out[n++] = (char)c;
+  }
+  out[n] = '\0';
+}
+
+// Writes the hostname this device registers via DHCP: the sanitized friendly
+// name if one is set, otherwise "weather-leds-XXXXXX" where XXXXXX is the last
+// 3 bytes of the MAC address in lowercase hex.
+void currentHostname(char* out, size_t outLen) {
+  buildHostname(cfg_friendly_name, out, outLen);
+  if (out[0] != '\0') return;
 #ifndef UNIT_TESTING
   // WiFi.macAddress() returns all-zeroes before WiFi.begin(), so read the
   // base MAC via ESP.getEfuseMac() which is available at any time.
   // getEfuseMac() packs mac[0..5] into a uint64 with mac[0] at the LSB.
   uint64_t mac64 = ESP.getEfuseMac();
-  snprintf(hostname, sizeof(hostname), "weather-leds-%02x%02x%02x",
+  snprintf(out, outLen, "weather-leds-%02x%02x%02x",
            (uint8_t)(mac64 >> 24),   // mac[3]
            (uint8_t)(mac64 >> 32),   // mac[4]
            (uint8_t)(mac64 >> 40));  // mac[5]
 #else
-  snprintf(hostname, sizeof(hostname), "weather-leds-112233");
+  snprintf(out, outLen, "weather-leds-112233");
 #endif
+}
+
+// Sets the DHCP hostname (see currentHostname()). Must be called before
+// WiFi.begin() for the name to be registered via DHCP.
+void applyHostname() {
+  static char hostname[FRIENDLY_NAME_MAX + 1];
+  currentHostname(hostname, sizeof(hostname));
+  Serial.printf("Hostname: %s\n", hostname);
   WiFi.setHostname(hostname);
+}
+
+// HTML-escapes & < > " ' so user-supplied text can be injected into element
+// content or attribute values. Output is truncated (never mid-entity) to fit.
+void htmlEscape(const char* in, char* out, size_t outLen) {
+  if (outLen == 0) return;
+  size_t n = 0;
+  for (const char* p = in; *p; ++p) {
+    const char* rep = nullptr;
+    switch (*p) {
+      case '&':  rep = "&amp;";  break;
+      case '<':  rep = "&lt;";   break;
+      case '>':  rep = "&gt;";   break;
+      case '"':  rep = "&quot;"; break;
+      case '\'': rep = "&#39;";  break;
+    }
+    size_t len = rep ? strlen(rep) : 1;
+    if (n + len >= outLen) break;
+    if (rep) { memcpy(out + n, rep, len); n += len; }
+    else     { out[n++] = *p; }
+  }
+  out[n] = '\0';
 }
 
 void startAPMode() {
@@ -425,7 +491,7 @@ void startAPMode() {
 }
 
 void handleRoot() {
-  static char page[18432];
+  static char page[20480];
   String ip = g_ap_mode ? WiFi.softAPIP().toString() : WiFi.localIP().toString();
   const char* stationDisplay = g_ap_mode ? "none" : "block";
   // Format 24-bit RGB as #rrggbb (always 7 chars + NUL = 8 bytes).
@@ -438,9 +504,18 @@ void handleRoot() {
   snprintf(dfltFreezeHex, sizeof(dfltFreezeHex), "#%06x", (unsigned)(DEFAULT_FREEZE_COLOR & 0xFFFFFFU));
   snprintf(dfltHeatHex,   sizeof(dfltHeatHex),   "#%06x", (unsigned)(DEFAULT_HEAT_COLOR   & 0xFFFFFFU));
   snprintf(dfltRainHex,   sizeof(dfltRainHex),   "#%06x", (unsigned)(DEFAULT_RAIN_COLOR   & 0xFFFFFFU));
+  // Friendly name: escaped once (worst case 6 bytes/char for &quot;).
+  char escName[FRIENDLY_NAME_MAX * 6 + 1];
+  htmlEscape(cfg_friendly_name, escName, sizeof(escName));
+  const char* displayTitle = escName[0] ? escName : "Weather LEDs Config";
+  char hostname[FRIENDLY_NAME_MAX + 1];
+  currentHostname(hostname, sizeof(hostname));
   snprintf(page, sizeof(page), CONFIG_HTML,
+           displayTitle,                   // <title>
+           displayTitle,                   // <h1>
            g_ap_mode ? "block" : "none",  // AP setup banner
            stationDisplay,                 // main-cfg section (hidden in AP mode)
+           escName,                        // friendly name field
            cfg_num_leds, cfg_brightness, cfg_poll_min,
            cfg_cold_temp, cfg_hot_temp,
            cfg_latitude, cfg_longitude,
@@ -452,6 +527,7 @@ void handleRoot() {
            cfg_wifi_ssid,                  // SSID field
            stationDisplay,                 // station-only section (poll + OTA)
            FIRMWARE_VERSION, FIRMWARE_BUILD_TIMESTAMP,
+           hostname,                       // footer: DHCP hostname
            ip.c_str(),
            DEFAULT_HOLD_SEC, DEFAULT_ALERT_HOLD_SEC, DEFAULT_ATTACK_SEC, DEFAULT_DECAY_SEC,  // timing defaults for reset JS
            DEFAULT_FREEZE_THR_F, dfltFreezeHex,   // threshold/color defaults for reset JS
@@ -463,6 +539,15 @@ void handleRoot() {
 }
 
 void handleSave() {
+  bool nameChanged = false;
+  if (server.hasArg("friendly_name")) {
+    String name = server.arg("friendly_name");
+    name.trim();
+    if (name.length() > FRIENDLY_NAME_MAX) name = name.substring(0, FRIENDLY_NAME_MAX);
+    name.trim();  // truncation may expose trailing whitespace
+    if (name != String(cfg_friendly_name)) nameChanged = true;
+    name.toCharArray(cfg_friendly_name, sizeof(cfg_friendly_name));
+  }
   if (server.hasArg("brightness"))
     cfg_brightness = (uint8_t)constrain(server.arg("brightness").toInt(), 0, 255);
   if (server.hasArg("poll_min"))
@@ -552,6 +637,31 @@ void handleSave() {
   if (locationChanged) g_forceRepoll = true;
   if (wifiChanged)     g_pendingConnect = true;
   if (g_demo_mode)     g_forceRepoll = true;  // any setting change reruns the demo
+
+  if (nameChanged && !g_ap_mode) {
+    // The DHCP hostname is only registered on (re)connect, so reboot to apply it.
+    // Serve a page that waits for the device to come back instead of a redirect
+    // the browser would try to follow while the device is restarting.
+    static char msg[512];
+    char escName[FRIENDLY_NAME_MAX * 6 + 1];
+    htmlEscape(cfg_friendly_name, escName, sizeof(escName));
+    snprintf(msg, sizeof(msg),
+             "<!DOCTYPE html><html><head><meta charset=\"utf-8\">"
+             "<meta http-equiv=\"refresh\" content=\"10;url=/\">"
+             "<title>Rebooting</title></head>"
+             "<body style=\"font-family:sans-serif;background:#1a1a1a;color:#e0e0e0;"
+             "max-width:500px;margin:2em auto;padding:0 1em\">"
+             "<p>Saved. Rebooting as <strong>%s</strong>&hellip; this page will reload shortly.</p>"
+             "</body></html>",
+             escName[0] ? escName : "default hostname");
+    server.send(200, "text/html", msg);
+    g_pendingRestart = true;
+#ifndef UNIT_TESTING
+    delay(200);
+    ESP.restart();
+#endif
+    return;
+  }
 
   server.sendHeader("Location", "/");
   server.send(303);

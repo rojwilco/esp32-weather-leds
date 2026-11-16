@@ -5,6 +5,10 @@ Each LED represents one day, color-coded blue (cold) to red (hot). LEDs pulse to
 (daily low ≤ 32°F), heat days (daily high ≥ 95°F), and rainy days (precipitation probability ≥ 50%) —
 all thresholds configurable.
 
+Today's LED (LED 1) only alerts on the hours **still to come** today: rain, a cold snap, or a hot spell
+that has already passed no longer keeps it pulsing. Its base color still reflects the whole day's
+average temperature.
+
 ## Hardware
 
 ![Assembled weather LED bar showing a rain-alert day](docs/demo.gif)

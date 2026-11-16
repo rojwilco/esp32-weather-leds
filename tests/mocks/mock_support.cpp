@@ -33,6 +33,7 @@ std::vector<MockNetwork> g_mock_scan_results;
 int    g_mock_http_code     = 200;
 String g_mock_http_payload  = "";
 bool   g_mock_http_begin_ok = true;
+String g_mock_http_url      = "";
 
 // ── Preferences.h globals ─────────────────────────────────────────────────────
 std::map<std::string, std::string> g_mock_prefs_store;

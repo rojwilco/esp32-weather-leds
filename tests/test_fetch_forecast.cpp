@@ -182,3 +182,145 @@ TEST_F(FetchForecastTest, DifferentLocationStillParses) {
     DayForecast days[DEFAULT_NUM_LEDS];
     EXPECT_TRUE(fetchForecast(days));
 }
+
+// ── Rest-of-today narrowing for day 0 (issue #61) ────────────────────────────
+// daily.time[0] = 1763269200 is "today's" local midnight; hourly times start at
+// 14:00 local (todayStart + 14h). Entries at/after todayStart + 86400 belong to
+// tomorrow and must be ignored.
+
+static const long TODAY = 1763269200L;
+static const long H14   = TODAY + 14 * 3600L;
+
+static String restOfDayPayload(const char* hourlyTemps, const char* hourlyPrecip,
+                               int nHours) {
+    std::string times = "[";
+    for (int h = 0; h < nHours; h++) {
+        if (h) times += ",";
+        times += std::to_string(H14 + h * 3600L);
+    }
+    times += "]";
+    char buf[2048];
+    snprintf(buf, sizeof(buf), R"({
+      "daily": {
+        "time": [%ld, %ld, %ld, %ld, %ld, %ld],
+        "temperature_2m_max":            [99.0, 90.0, 78.0, 65.0, 72.0, 88.0],
+        "temperature_2m_min":            [28.0, 75.0, 60.0, 50.0, 55.0, 72.0],
+        "precipitation_probability_max": [90.0, 80.0, 30.0, 40.0, 50.0, 60.0]
+      },
+      "hourly": {
+        "time": %s,
+        "temperature_2m": %s,
+        "precipitation_probability": %s
+      }
+    })", TODAY, TODAY + 86400L, TODAY + 2 * 86400L, TODAY + 3 * 86400L,
+         TODAY + 4 * 86400L, TODAY + 5 * 86400L,
+         times.c_str(), hourlyTemps, hourlyPrecip);
+    return String(buf);
+}
+
+// Description: The request URL asks for 24 hours of hourly temperature and
+// precipitation with integer epoch times, so day 0 can be narrowed to the
+// remaining hours without a second request or string-time storage.
+TEST_F(FetchForecastTest, UrlRequestsHourlyRestOfDayData) {
+    RecordProperty("description",
+        "The request URL asks for 24 hours of hourly temperature and precipitation "
+        "with integer epoch times, so day 0 can be narrowed to the remaining hours "
+        "without a second request or string-time storage.");
+    DayForecast days[DEFAULT_NUM_LEDS];
+    ASSERT_TRUE(fetchForecast(days));
+    std::string url = g_mock_http_url.c_str();
+    EXPECT_NE(url.find("hourly=temperature_2m,precipitation_probability"), std::string::npos) << url;
+    EXPECT_NE(url.find("forecast_hours=24"), std::string::npos) << url;
+    EXPECT_NE(url.find("timeformat=unixtime"), std::string::npos) << url;
+}
+
+// Description: Rain that fell earlier today (daily max 90%) no longer counts once
+// the remaining hours are dry; day 0's precipProb becomes the rest-of-day max
+// while later days keep their daily values.
+TEST_F(FetchForecastTest, PastRainTodayIgnored) {
+    RecordProperty("description",
+        "Rain that fell earlier today (daily max 90%) no longer counts once the "
+        "remaining hours are dry; day 0's precipProb becomes the rest-of-day max "
+        "while later days keep their daily values.");
+    g_mock_http_payload = restOfDayPayload(
+        "[60, 60, 60]", "[5, 10, 0]", 3);
+    DayForecast days[DEFAULT_NUM_LEDS];
+    ASSERT_TRUE(fetchForecast(days));
+    EXPECT_FLOAT_EQ(days[0].precipProb, 10.0f);
+    EXPECT_FLOAT_EQ(days[1].precipProb, 80.0f);
+}
+
+// Description: Rain still forecast later today keeps day 0's precipitation
+// probability high, so the fix does not suppress genuine upcoming rain.
+TEST_F(FetchForecastTest, UpcomingRainTodayKept) {
+    RecordProperty("description",
+        "Rain still forecast later today keeps day 0's precipitation probability "
+        "high, so the fix does not suppress genuine upcoming rain.");
+    g_mock_http_payload = restOfDayPayload(
+        "[60, 60, 60]", "[5, 70, 20]", 3);
+    DayForecast days[DEFAULT_NUM_LEDS];
+    ASSERT_TRUE(fetchForecast(days));
+    EXPECT_FLOAT_EQ(days[0].precipProb, 70.0f);
+}
+
+// Description: A cold morning and a hot spell that have already passed do not
+// drive day 0's min/max; they become the rest-of-day extremes, while tempAvg
+// (the base color) still reflects the full-day daily values.
+TEST_F(FetchForecastTest, PastTempExtremesIgnoredButAvgKept) {
+    RecordProperty("description",
+        "A cold morning and a hot spell that have already passed do not drive "
+        "day 0's min/max; they become the rest-of-day extremes, while tempAvg "
+        "(the base color) still reflects the full-day daily values.");
+    g_mock_http_payload = restOfDayPayload(
+        "[55, 48, 40]", "[0, 0, 0]", 3);
+    DayForecast days[DEFAULT_NUM_LEDS];
+    ASSERT_TRUE(fetchForecast(days));
+    EXPECT_FLOAT_EQ(days[0].tempMin, 40.0f);
+    EXPECT_FLOAT_EQ(days[0].tempMax, 55.0f);
+    EXPECT_FLOAT_EQ(days[0].tempAvg, (99.0f + 28.0f) / 2.0f);
+    EXPECT_FLOAT_EQ(days[1].tempMin, 75.0f);
+}
+
+// Description: Hourly entries at or after tomorrow's midnight are excluded, so
+// tomorrow's rain or cold cannot leak into today's alerts.
+TEST_F(FetchForecastTest, TomorrowHoursExcludedFromToday) {
+    RecordProperty("description",
+        "Hourly entries at or after tomorrow's midnight are excluded, so "
+        "tomorrow's rain or cold cannot leak into today's alerts.");
+    // 14:00 .. 23:00 today (10 hours), then 00:00 and 01:00 tomorrow.
+    g_mock_http_payload = restOfDayPayload(
+        "[60,60,60,60,60,60,60,60,60,60, 10, 10]",
+        "[0,0,0,0,0,0,0,0,0,0, 100, 100]", 12);
+    DayForecast days[DEFAULT_NUM_LEDS];
+    ASSERT_TRUE(fetchForecast(days));
+    EXPECT_FLOAT_EQ(days[0].precipProb, 0.0f);
+    EXPECT_FLOAT_EQ(days[0].tempMin, 60.0f);
+}
+
+// Description: Null hourly values are skipped; if every remaining hour is null
+// for a field, that field falls back to its daily value instead of zero.
+TEST_F(FetchForecastTest, NullHourlyValuesFallBackToDaily) {
+    RecordProperty("description",
+        "Null hourly values are skipped; if every remaining hour is null for a "
+        "field, that field falls back to its daily value instead of zero.");
+    g_mock_http_payload = restOfDayPayload(
+        "[null, 50, null]", "[null, null, null]", 3);
+    DayForecast days[DEFAULT_NUM_LEDS];
+    ASSERT_TRUE(fetchForecast(days));
+    EXPECT_FLOAT_EQ(days[0].tempMin, 50.0f);
+    EXPECT_FLOAT_EQ(days[0].tempMax, 50.0f);
+    EXPECT_FLOAT_EQ(days[0].precipProb, 90.0f) << "all-null precip keeps daily value";
+}
+
+// Description: A response without hourly data (or daily.time) leaves day 0 at
+// its daily values, preserving the previous behaviour as a safe fallback.
+TEST_F(FetchForecastTest, NoHourlyDataKeepsDailyValues) {
+    RecordProperty("description",
+        "A response without hourly data (or daily.time) leaves day 0 at its "
+        "daily values, preserving the previous behaviour as a safe fallback.");
+    DayForecast days[DEFAULT_NUM_LEDS];
+    ASSERT_TRUE(fetchForecast(days));  // VALID_PAYLOAD has no hourly block
+    EXPECT_FLOAT_EQ(days[0].tempMax, 85.0f);
+    EXPECT_FLOAT_EQ(days[0].tempMin, 70.0f);
+    EXPECT_FLOAT_EQ(days[0].precipProb, 10.0f);
+}

@@ -168,12 +168,52 @@ CRGB tempToColor(float tempF) {
   return CHSV(hue, 255, 255);
 }
 
+// Narrows day 0's alert inputs (tempMin, tempMax, precipProb) to the hours
+// that remain today. `times` are epoch seconds starting at the current hour;
+// `todayStart` is today's local midnight (daily.time[0]). Any field with no
+// usable hourly data keeps its daily value.
+void applyRestOfToday(DayForecast& day0, JsonArray times, JsonArray temps,
+                      JsonArray probs, int64_t todayStart) {
+  if (times.isNull()) return;
+  const int64_t todayEnd = todayStart + 86400;
+  bool  haveTemp = false, havePrecip = false;
+  float tMin = 0, tMax = 0, pMax = 0;
+  for (size_t j = 0; j < times.size(); j++) {
+    if (times[j].isNull()) continue;
+    int64_t t = times[j].as<int64_t>();
+    if (t < todayStart || t >= todayEnd) continue;
+    if (!temps.isNull() && j < temps.size() && !temps[j].isNull()) {
+      float v = temps[j].as<float>();
+      if (!haveTemp) { tMin = tMax = v; haveTemp = true; }
+      else { if (v < tMin) tMin = v; if (v > tMax) tMax = v; }
+    }
+    if (!probs.isNull() && j < probs.size() && !probs[j].isNull()) {
+      float v = probs[j].as<float>();
+      if (!havePrecip || v > pMax) pMax = v;
+      havePrecip = true;
+    }
+  }
+  if (haveTemp)   { day0.tempMin = tMin; day0.tempMax = tMax; }
+  if (havePrecip) { day0.precipProb = pMax; }
+  if (haveTemp || havePrecip) {
+    Serial.printf("  day 0 rest-of-day: min=%.1f  max=%.1f  precip=%.0f%%\n",
+                  day0.tempMin, day0.tempMax, day0.precipProb);
+  }
+}
+
 bool fetchForecast(DayForecast* outDays) {
-  char url[300];
+  // hourly + forecast_hours=24: hourly data starts at the *current* hour and is
+  // capped at 24 entries regardless of forecast_days, so it lets day 0's alerts
+  // ignore hours that have already passed without inflating the payload.
+  // timeformat=unixtime keeps all times as integers (no string storage).
+  char url[400];
   snprintf(url, sizeof(url),
     "https://api.open-meteo.com/v1/forecast"
     "?latitude=%s&longitude=%s"
     "&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max"
+    "&hourly=temperature_2m,precipitation_probability"
+    "&forecast_hours=24"
+    "&timeformat=unixtime"
     "&temperature_unit=fahrenheit"
     "&timezone=auto"
     "&forecast_days=%d",
@@ -204,6 +244,10 @@ bool fetchForecast(DayForecast* outDays) {
   filter["daily"]["temperature_2m_max"][0] = true;
   filter["daily"]["temperature_2m_min"][0] = true;
   filter["daily"]["precipitation_probability_max"][0] = true;
+  filter["daily"]["time"][0] = true;
+  filter["hourly"]["time"][0] = true;
+  filter["hourly"]["temperature_2m"][0] = true;
+  filter["hourly"]["precipitation_probability"][0] = true;
 
   JsonDocument doc;
   DeserializationError err = deserializeJson(doc, payload, DeserializationOption::Filter(filter));
@@ -237,6 +281,17 @@ bool fetchForecast(DayForecast* outDays) {
     Serial.printf("  day %d: max=%.1f  min=%.1f  avg=%.1f  precip=%.0f%%\n",
                   i, outDays[i].tempMax, outDays[i].tempMin,
                   outDays[i].tempAvg, outDays[i].precipProb);
+  }
+
+  // Today's alerts should only reflect the hours still to come (issue #61).
+  // tempAvg (the base color) intentionally keeps the full-day daily value.
+  JsonArray dayTimes = doc["daily"]["time"].as<JsonArray>();
+  if (cfg_num_leds > 0 && outDays[0].valid && !dayTimes.isNull() && !dayTimes[0].isNull()) {
+    applyRestOfToday(outDays[0],
+                     doc["hourly"]["time"].as<JsonArray>(),
+                     doc["hourly"]["temperature_2m"].as<JsonArray>(),
+                     doc["hourly"]["precipitation_probability"].as<JsonArray>(),
+                     dayTimes[0].as<int64_t>());
   }
 
   return true;

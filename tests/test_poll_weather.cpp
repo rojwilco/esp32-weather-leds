@@ -338,3 +338,34 @@ TEST_F(PollWeatherTest, ReturnsFalseOnFetchFailure) {
     g_mock_http_code = 500;
     EXPECT_FALSE(pollWeather());
 }
+
+// ── Rest-of-today alerts (issue #61) ──────────────────────────────────────────
+
+// Description: When today's daily data says rain and freeze but those hours have
+// already passed, LED 0 shows no alert while LED 1 still alerts from its daily
+// values — only today is narrowed to the remaining hours.
+TEST_F(PollWeatherTest, TodayAlertIgnoresPastHours) {
+    RecordProperty("description",
+        "When today's daily data says rain and freeze but those hours have already "
+        "passed, LED 0 shows no alert while LED 1 still alerts from its daily "
+        "values; only today is narrowed to the remaining hours.");
+    const long today = 1763269200L;
+    char buf[1024];
+    snprintf(buf, sizeof(buf),
+        "{\"daily\":{"
+        "\"time\":[%ld,%ld,%ld,%ld,%ld,%ld],"
+        "\"temperature_2m_max\":[60,60,60,60,60,60],"
+        "\"temperature_2m_min\":[28,28,50,50,50,50],"
+        "\"precipitation_probability_max\":[90,90,0,0,0,0]},"
+        "\"hourly\":{"
+        "\"time\":[%ld,%ld],"
+        "\"temperature_2m\":[55,50],"
+        "\"precipitation_probability\":[5,10]}}",
+        today, today + 86400L, today + 2*86400L, today + 3*86400L,
+        today + 4*86400L, today + 5*86400L,
+        today + 20*3600L, today + 21*3600L);
+    g_mock_http_payload = String(buf);
+    ASSERT_TRUE(pollWeather());
+    EXPECT_EQ(ledStates[0].alert, ALERT_NONE);
+    EXPECT_EQ(ledStates[1].alert, ALERT_RAIN);
+}
